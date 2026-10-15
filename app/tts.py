@@ -1,15 +1,23 @@
-"""Text-to-speech using gTTS. Files are cached by text+language hash."""
+"""Text-to-speech using gTTS. Audio files are cached by text and language."""
 import hashlib
-
 from config import Config
 
+# gTTS language codes supported by this project. Keep in sync with the UI.
+SUPPORTED_LANGUAGES = {
+    "en": "English",
+    "hi": "Hindi",
+    "es": "Spanish",
+    "fr": "French",
+    "de": "German",
+    "ta": "Tamil",
+    "te": "Telugu",
+    "bn": "Bengali",
+}
 
 def speak(text, lang="en"):
-    """Return the filename (inside static/audio) of an MP3 for `text`.
-
-    Raises RuntimeError if gTTS or the network is unavailable; the frontend
-    then falls back to the browser's built-in speech synthesis.
-    """
+    """Return an MP3 filename. Raises RuntimeError if speech generation fails."""
+    if lang not in SUPPORTED_LANGUAGES:
+        raise ValueError(f"Unsupported language: {lang}")
     try:
         from gtts import gTTS
     except ImportError as exc:
@@ -21,6 +29,6 @@ def speak(text, lang="en"):
     if not path.exists():
         try:
             gTTS(text=text, lang=lang).save(str(path))
-        except Exception as exc:  # network errors, unsupported language, ...
+        except Exception as exc:
             raise RuntimeError(f"Speech generation failed: {exc}") from exc
     return name
