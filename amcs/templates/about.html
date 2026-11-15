@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+
+{% block title %}About &middot; {{ project_title }}{% endblock %}
+
+{% block content %}
+<div class="about-layout">
+
+    <section class="card hero-card" aria-labelledby="about-title">
+        <div class="inst-badge">
+            <span class="skit-tag"><i class="fa-solid fa-graduation-cap" aria-hidden="true"></i> SKIT JAIPUR</span>
+            <span class="dept-tag">{{ department }}</span>
+        </div>
+        <p class="proposal-title">Final year project</p>
+        <h1 id="about-title" class="main-project-heading text-gradient">{{ project_title }}</h1>
+        <p class="hero-lede">
+            An assistive web app that turns what a camera sees into natural spoken guidance in 14 languages,
+            reads signs, medicine strips and banknotes, and keeps caregivers informed with live location and SOS alerts.
+        </p>
+
+        <div class="meta-grid">
+            <div class="meta-box">
+                <h4><i class="fa-solid fa-users" aria-hidden="true"></i> Presented by</h4>
+                <ul class="meta-list">
+                    {% for member in team %}
+                    <li><strong>{{ member.name }}</strong><span>{{ member.roll_no }}</span></li>
+                    {% endfor %}
+                </ul>
+            </div>
+            <div class="meta-box">
+                <h4><i class="fa-solid fa-chalkboard-user" aria-hidden="true"></i> Supervised by</h4>
+                <p><strong>{{ supervisor.name }}</strong><br><span class="text-muted">{{ supervisor.designation }}</span></p>
+                <p class="college-subtext">{{ college }}</p>
+            </div>
+        </div>
+
+        <div class="hero-actions">
+            <a href="/" class="btn btn-primary"><i class="fa-solid fa-eye" aria-hidden="true"></i> Open the assistant</a>
+            <a href="/sandbox" class="btn btn-outline"><i class="fa-solid fa-flask-vial" aria-hidden="true"></i> Viva sandbox</a>
+        </div>
+    </section>
+
+    <div class="about-grid">
+        <section class="card">
+            <h3><i class="fa-solid fa-compass-drafting" aria-hidden="true"></i> Domain overview</h3>
+            <div class="prose">
+                <p>
+                    <strong>{{ project_title }}</strong> is a Python assistive system built with <strong>OpenCV</strong> and
+                    <strong>YOLO26</strong> and an open-vocabulary <strong>YOLOE</strong> model for real-time object and obstacle detection, an <strong>NLP module</strong> for natural scene
+                    descriptions, <strong>gTTS</strong> for speech, and <strong>GPS + Folium</strong> for live mapping,
+                    all served from one Flask web application.
+                </p>
+                <p>
+                    <strong>Core focus:</strong> convert what the camera sees into natural spoken language while sharing the
+                    user's live location with caregivers. Detection, description and speech happen automatically, with no manual input.
+                </p>
+            </div>
+        </section>
+
+        <section class="card">
+            <h3><i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i> Problem statement</h3>
+            <div class="prose">
+                <p><strong>The gap:</strong> a cane or guide dog cannot describe surroundings. Reading text, recognising obstacles and sharing an emergency location are poorly served by low-cost tools.</p>
+                <p><strong>The impact:</strong> limited independent mobility reduces confidence in unfamiliar places, and late obstacle awareness increases the risk of falls.</p>
+                <p><strong>Our goal:</strong> a system that detects objects through a camera, turns them into natural spoken feedback, and shares live GPS location, all in one Flask web app.</p>
+            </div>
+        </section>
+    </div>
+
+    <section class="card" aria-labelledby="features-heading">
+        <h3 id="features-heading"><i class="fa-solid fa-layer-group" aria-hidden="true"></i> What it can do</h3>
+        <div class="feature-grid">
+            <div class="feature-item"><i class="fa-solid fa-person-walking" aria-hidden="true"></i><div><h4>Obstacle guidance</h4><p>YOLO26 + YOLOE detection of 140 everyday object types with left / ahead / right position and distance.</p></div></div>
+            <div class="feature-item"><i class="fa-solid fa-car-burst" aria-hidden="true"></i><div><h4>Collision warnings</h4><p>Time-to-collision tracking with evasive spoken commands.</p></div></div>
+            <div class="feature-item"><i class="fa-solid fa-language" aria-hidden="true"></i><div><h4>Sign translation</h4><p>EasyOCR text extraction translated into 14 languages.</p></div></div>
+            <div class="feature-item"><i class="fa-solid fa-pills" aria-hidden="true"></i><div><h4>Medicine reader</h4><p>Glare-reduced foil OCR with expiry-date warnings.</p></div></div>
+            <div class="feature-item"><i class="fa-solid fa-indian-rupee-sign" aria-hidden="true"></i><div><h4>Banknote recognition</h4><p>₹10 to ₹500 notes from colour profile and OCR tokens.</p></div></div>
+            <div class="feature-item"><i class="fa-solid fa-traffic-light" aria-hidden="true"></i><div><h4>Crossing assistant</h4><p>Traffic-signal state with safe-to-cross advice.</p></div></div>
+            <div class="feature-item"><i class="fa-solid fa-satellite-dish" aria-hidden="true"></i><div><h4>Find my item</h4><p>Spatial audio radar that beeps faster as you aim at the item.</p></div></div>
+            <div class="feature-item"><i class="fa-solid fa-route" aria-hidden="true"></i><div><h4>Campus wayfinding</h4><p>Turn-by-turn walking directions between landmarks.</p></div></div>
+            <div class="feature-item"><i class="fa-solid fa-person-falling-burst" aria-hidden="true"></i><div><h4>Fall detection</h4><p>Accelerometer impact detection with a cancellable SOS countdown.</p></div></div>
+            <div class="feature-item"><i class="fa-solid fa-bullhorn" aria-hidden="true"></i><div><h4>Horn &amp; siren alerts</h4><p>Microphone spectrum analysis with haptic warnings.</p></div></div>
+            <div class="feature-item"><i class="fa-solid fa-video" aria-hidden="true"></i><div><h4>Tele-assistance</h4><p>Caregivers see the camera view and speak guidance.</p></div></div>
+            <div class="feature-item"><i class="fa-solid fa-microphone" aria-hidden="true"></i><div><h4>Hands-free control</h4><p>Voice commands and keyboard shortcuts for every tool.</p></div></div>
+        </div>
+    </section>
+
+    <section class="card" aria-labelledby="arch-heading">
+        <h3 id="arch-heading"><i class="fa-solid fa-diagram-project" aria-hidden="true"></i> Architecture &amp; workflow</h3>
+        <div class="arch-flow-grid">
+            <div class="flow-step">
+                <div class="flow-icon" aria-hidden="true"><i class="fa-solid fa-camera"></i></div>
+                <h4>1 · Vision</h4>
+                <p>Camera frames processed with OpenCV, YOLO26 and YOLOE for objects, obstacles and spatial position.</p>
+            </div>
+            <div class="flow-arrow" aria-hidden="true"><i class="fa-solid fa-arrow-right"></i></div>
+            <div class="flow-step">
+                <div class="flow-icon" aria-hidden="true"><i class="fa-solid fa-brain"></i></div>
+                <h4>2 · Language</h4>
+                <p>NLP scene descriptions translated by NMT into 14 regional and international languages.</p>
+            </div>
+            <div class="flow-arrow" aria-hidden="true"><i class="fa-solid fa-arrow-right"></i></div>
+            <div class="flow-step">
+                <div class="flow-icon" aria-hidden="true"><i class="fa-solid fa-volume-high"></i></div>
+                <h4>3 · Speech</h4>
+                <p>gTTS, with browser speech as fallback, reads descriptions aloud hands-free.</p>
+            </div>
+            <div class="flow-arrow" aria-hidden="true"><i class="fa-solid fa-arrow-right"></i></div>
+            <div class="flow-step">
+                <div class="flow-icon" aria-hidden="true"><i class="fa-solid fa-map-location-dot"></i></div>
+                <h4>4 · Location</h4>
+                <p>GPS tracking and a live Folium map on the caregiver dashboard.</p>
+            </div>
+        </div>
+    </section>
+
+    <section class="card" aria-labelledby="lit-heading">
+        <h3 id="lit-heading"><i class="fa-solid fa-book-bookmark" aria-hidden="true"></i> Literature survey</h3>
+        <div class="table-responsive">
+            <table class="styled-table">
+                <thead>
+                    <tr>
+                        <th scope="col">Solution</th>
+                        <th scope="col">Method</th>
+                        <th scope="col">Strengths</th>
+                        <th scope="col">Gaps</th>
+                        <th scope="col">Our improvement</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Shaikh (IJERT, 2020)</strong></td>
+                        <td>Dual camera + ultrasonic + offline TTS</td>
+                        <td>Robust obstacle &amp; object detection</td>
+                        <td>Needs custom wearable glasses</td>
+                        <td>Runs as a lightweight web app with no custom hardware</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Naqvi et al. (Springer, 2021)</strong></td>
+                        <td>OpenCV + SSD-MobileNet on Raspberry Pi</td>
+                        <td>High accuracy and speed</td>
+                        <td>Hardware-bound; logs to a text file only</td>
+                        <td>Interactive browser dashboard and multilingual voice</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Hybrid YOLO assistive vision (2026)</strong></td>
+                        <td>YOLO + OpenCV + pyttsx3 on CPU</td>
+                        <td>12–18 FPS without a GPU</td>
+                        <td>No location sharing or caregiver interface</td>
+                        <td>Live GPS mapping and emergency SOS alerts</td>
+                    </tr>
+                    <tr class="highlight-row">
+                        <td><strong>{{ project_title }}</strong></td>
+                        <td>OpenCV + YOLO + NLP + gTTS + GPS + Folium + Flask</td>
+                        <td>Vision-to-speech, sign OCR, translation and a live map</td>
+                        <td><em>Proposed solution</em></td>
+                        <td><strong>Real-time vision-to-speech and live GPS mapping in one accessible app</strong></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="card" aria-labelledby="ref-heading">
+        <h3 id="ref-heading"><i class="fa-solid fa-quote-left" aria-hidden="true"></i> References</h3>
+        <ol class="references-list">
+            <li>
+                <strong>Shaikh, S. (2020)</strong>. <em>Assistive Object Recognition System for Visually Impaired</em>.
+                International Journal of Engineering Research &amp; Technology (IJERT).<br>
+                <a href="https://www.ijert.org/assistive-object-recognition-system-for-visually-impaired" target="_blank" rel="noopener">ijert.org/assistive-object-recognition-system-for-visually-impaired</a>
+            </li>
+            <li>
+                <strong>Naqvi, K. et al. (2021)</strong>. <em>Employing Real-Time Object Detection for Visually Impaired People</em>.
+                Springer Nature, Data Analytics and Management (LNDECT, vol. 54, pp. 285–299).<br>
+                <a href="https://link.springer.com/chapter/10.1007/978-981-15-8335-3_23" target="_blank" rel="noopener">link.springer.com/chapter/10.1007/978-981-15-8335-3_23</a>
+            </li>
+            <li>
+                <strong>Alshaker, R. R. M. (2019)</strong>. <em>Real Time Object Detection for Visually Impaired Person (YOLOv3 + Raspberry Pi + gTTS)</em>.
+                Academia / University of Mosul.<br>
+                <a href="https://www.academia.edu/49642920/Real_Time_Object_Detection_for_Visually_Impaired_Person" target="_blank" rel="noopener">academia.edu/49642920/Real_Time_Object_Detection_for_Visually_Impaired_Person</a>
+            </li>
+        </ol>
+    </section>
+</div>
+{% endblock %}

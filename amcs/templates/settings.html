@@ -1,0 +1,348 @@
+{% extends "base.html" %}
+
+{% block title %}Settings &middot; {{ project_title }}{% endblock %}
+
+{% block content %}
+<header class="page-header">
+    <div>
+        <span class="eyebrow"><i class="fa-solid fa-gear" aria-hidden="true"></i> Settings</span>
+        <h1>Preferences</h1>
+        <p>Voice, feedback and appearance settings are saved on this device. Server settings come from <code>config.py</code>.</p>
+    </div>
+    <span class="badge badge-safe">v{{ app_version }}</span>
+</header>
+
+<form id="settings-form" class="settings-layout" onsubmit="event.preventDefault(); saveSettings();">
+
+    <section class="card settings-section" aria-labelledby="voice-heading">
+        <h3 id="voice-heading"><i class="fa-solid fa-volume-high" aria-hidden="true"></i> Voice &amp; language</h3>
+        <p class="card-desc" style="margin-top:0">How AMCS speaks to you.</p>
+
+        <div class="form-group">
+            <label for="cfg-lang">Spoken language</label>
+            <select id="cfg-lang" class="form-control">
+                {% for code, meta in languages.items() %}
+                <option value="{{ code }}" {% if code == config.DEFAULT_LANGUAGE %}selected{% endif %}>{{ meta.flag }} {{ meta.native }} ({{ meta.name }})</option>
+                {% endfor %}
+            </select>
+            <small>Used for scene descriptions, warnings and translated signs.</small>
+        </div>
+
+        <div class="form-group">
+            <label for="cfg-voice">Voice</label>
+            <select id="cfg-voice" class="form-control" aria-describedby="voice-hint"></select>
+            <small id="voice-hint">Natural voices are listed first. Edge has the most natural ones ("Online (Natural)").</small>
+        </div>
+
+        <div class="form-group">
+            <label for="cfg-engine">Voice source</label>
+            <select id="cfg-engine" class="form-control">
+                <option value="auto">Automatic: natural device voice, otherwise server voice (recommended)</option>
+                <option value="device">Always this device's voice</option>
+                <option value="server">Always the server voice (Google TTS)</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="cfg-rate">Speaking speed</label>
+            <div class="range-row">
+                <input type="range" id="cfg-rate" min="0.6" max="1.5" step="0.05" value="0.95" aria-describedby="rate-val">
+                <output id="rate-val" class="slider-badge" for="cfg-rate">0.95×</output>
+            </div>
+            <small>Applies to device and server voices.</small>
+        </div>
+
+        <div class="form-group">
+            <label for="cfg-interval">Minimum pause between scene updates</label>
+            <div class="range-row">
+                <input type="range" id="cfg-interval" min="2" max="15" step="0.5" value="7.5" aria-describedby="interval-val">
+                <output id="interval-val" class="slider-badge" for="cfg-interval">7.5 s</output>
+            </div>
+            <small>The assistant only speaks when something new appears, and says each warning once. This also spaces out routine updates.</small>
+        </div>
+
+        <div class="form-group">
+            <button class="btn btn-outline" type="button" onclick="testVoice()">
+                <i class="fa-solid fa-play" aria-hidden="true"></i> Test voice
+            </button>
+        </div>
+    </section>
+
+    <section class="card settings-section" aria-labelledby="feedback-heading">
+        <h3 id="feedback-heading"><i class="fa-solid fa-hand-sparkles" aria-hidden="true"></i> Feedback &amp; sensors</h3>
+        <p class="card-desc" style="margin-top:0">Choose which alerts and device sensors AMCS uses.</p>
+
+        <label class="switch-row">
+            <span class="switch-text"><strong>Vibration</strong><span>Haptic pulses for hazards and cautions</span></span>
+            <input type="checkbox" class="switch" id="cfg-haptics">
+        </label>
+        <label class="switch-row">
+            <span class="switch-text"><strong>Sound cues</strong><span>Short tones when modes change or objects appear</span></span>
+            <input type="checkbox" class="switch" id="cfg-earcons">
+        </label>
+        <label class="switch-row">
+            <span class="switch-text"><strong>Automatic flashlight</strong><span>Turn the torch on in the dark (supported phones)</span></span>
+            <input type="checkbox" class="switch" id="cfg-autotorch">
+        </label>
+        <label class="switch-row">
+            <span class="switch-text"><strong>Horn &amp; siren listening</strong><span>Uses the microphone to detect traffic sounds</span></span>
+            <input type="checkbox" class="switch" id="cfg-acoustic">
+        </label>
+        <label class="switch-row">
+            <span class="switch-text"><strong>Share location with caregiver</strong><span>Sends GPS updates to the caregiver map</span></span>
+            <input type="checkbox" class="switch" id="cfg-gps">
+        </label>
+    </section>
+
+    <section class="card settings-section" aria-labelledby="quality-heading">
+        <h3 id="quality-heading"><i class="fa-solid fa-bullseye" aria-hidden="true"></i> Detection quality</h3>
+        <p class="card-desc" style="margin-top:0">How much detail the object detector looks at. Higher finds small and distant objects but needs a faster computer.</p>
+        <div class="choice-grid" role="radiogroup" aria-labelledby="quality-heading">
+            <label class="choice-card">
+                <input type="radio" name="cfg-quality" value="auto">
+                <strong><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i> Automatic</strong>
+                <span>Phone profile (light model, 640 px) on phones, Balanced on computers. Recommended.</span>
+            </label>
+            <label class="choice-card">
+                <input type="radio" name="cfg-quality" value="fast">
+                <strong><i class="fa-solid fa-gauge-high" aria-hidden="true"></i> Fast</strong>
+                <span>512 px. For slow laptops and weak Wi-Fi.</span>
+            </label>
+            <label class="choice-card">
+                <input type="radio" name="cfg-quality" value="mobile">
+                <strong><i class="fa-solid fa-mobile-screen" aria-hidden="true"></i> Phone</strong>
+                <span>Light model at 640 px. Quick and still finds small things.</span>
+            </label>
+            <label class="choice-card">
+                <input type="radio" name="cfg-quality" value="balanced">
+                <strong><i class="fa-solid fa-scale-balanced" aria-hidden="true"></i> Balanced</strong>
+                <span>640 px. Most accurate for everyday use.</span>
+            </label>
+            <label class="choice-card">
+                <input type="radio" name="cfg-quality" value="high">
+                <strong><i class="fa-solid fa-crosshairs" aria-hidden="true"></i> High detail</strong>
+                <span>960 px. Best for small or far objects.</span>
+            </label>
+        </div>
+
+        <div class="form-group" style="margin-top:16px">
+            <label for="cfg-lite">Visual effects</label>
+            <select id="cfg-lite" class="form-control">
+                <option value="auto">Automatic: lite on phones, full effects on computers (recommended)</option>
+                <option value="on">Lite: no blur or glow, smoother on slower phones</option>
+                <option value="off">Full effects everywhere</option>
+            </select>
+        </div>
+    </section>
+
+    <section class="card settings-section" aria-labelledby="appearance-heading">
+        <h3 id="appearance-heading"><i class="fa-solid fa-palette" aria-hidden="true"></i> Appearance</h3>
+        <p class="card-desc" style="margin-top:0">Applied instantly.</p>
+
+        <div class="form-group">
+            <span class="form-label" id="theme-label">Theme</span>
+            <div class="segmented" role="group" aria-labelledby="theme-label">
+                <button type="button" data-theme-choice="system"><i class="fa-solid fa-circle-half-stroke" aria-hidden="true"></i> System</button>
+                <button type="button" data-theme-choice="light"><i class="fa-solid fa-sun" aria-hidden="true"></i> Light</button>
+                <button type="button" data-theme-choice="dark"><i class="fa-solid fa-moon" aria-hidden="true"></i> Dark</button>
+            </div>
+        </div>
+        <label class="switch-row" style="margin-top:12px">
+            <span class="switch-text"><strong>High contrast</strong><span>Yellow on black with larger guidance text</span></span>
+            <input type="checkbox" class="switch" id="cfg-contrast">
+        </label>
+    </section>
+
+    <section class="card settings-section" aria-labelledby="server-heading">
+        <h3 id="server-heading"><i class="fa-solid fa-server" aria-hidden="true"></i> Server configuration</h3>
+        <p class="card-desc" style="margin-top:0">Read-only. Edit <code>config.py</code> and restart the server to change.</p>
+        <div class="kv-list">
+            <div class="kv-row"><span>Detection model</span><span>{{ detector_model }}{% if config.YOLO_MODEL_NAME == 'auto' %} (auto-selected){% endif %}</span></div>
+            <div class="kv-row"><span>Extended vocabulary</span><span>{{ detector_extended or 'not installed' }}</span></div>
+            <div class="kv-row"><span>Confidence threshold</span><span>{{ (config.CONFIDENCE_THRESHOLD * 100)|int }}% &middot; tracked objects from {{ (config.WEAK_CONFIDENCE_THRESHOLD * 100)|int }}%</span></div>
+            <div class="kv-row"><span>Hazard distance</span><span>&lt; {{ config.DISTANCE_HAZARD_METERS }} m</span></div>
+            <div class="kv-row"><span>Caution distance</span><span>&lt; {{ config.DISTANCE_CAUTION_METERS }} m</span></div>
+            <div class="kv-row"><span>Speech engine</span><span>{{ config.SPEECH_ENGINE }}</span></div>
+            <div class="kv-row"><span>Server repeat cooldown</span><span>{{ config.SPEECH_COOLDOWN_SECONDS }} s</span></div>
+            <div class="kv-row"><span>Safe zone centre</span><span>{{ config.DEFAULT_LATITUDE }}, {{ config.DEFAULT_LONGITUDE }}</span></div>
+            <div class="kv-row"><span>Safe zone radius</span><span>{{ config.GEOFENCE_RADIUS_METERS }} m</span></div>
+            <div class="kv-row"><span>Languages</span><span>{{ languages|length }}</span></div>
+        </div>
+    </section>
+
+    <div class="settings-actions">
+        <button class="btn btn-ghost" type="button" onclick="resetSettings()">
+            <i class="fa-solid fa-rotate-left" aria-hidden="true"></i> Reset to defaults
+        </button>
+        <button class="btn btn-primary" type="submit">
+            <i class="fa-solid fa-floppy-disk" aria-hidden="true"></i> Save preferences
+        </button>
+    </div>
+</form>
+
+<section class="card settings-section" aria-labelledby="places-heading" style="margin-top:20px">
+    <h3 id="places-heading"><i class="fa-solid fa-location-dot" aria-hidden="true"></i> Saved places</h3>
+    <p class="card-desc" style="margin-top:0">Places you saved for walking directions. On the assist page say <q>save this place as home</q>, then later <q>take me to home</q>.</p>
+    <div class="kv-list" id="places-list" aria-live="polite">
+        <div class="kv-row"><span>Loading…</span><span></span></div>
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    const SERVER_DEFAULT_LANG = {{ config.DEFAULT_LANGUAGE|tojson }};
+    const $ = (id) => document.getElementById(id);
+
+    function fillForm(p) {
+        $("cfg-lang").value = p.lang || SERVER_DEFAULT_LANG;
+        $("cfg-rate").value = p.speechRate;
+        $("cfg-engine").value = p.voiceEngine || "auto";
+        fillVoices(p.voiceName || "");
+        $("cfg-interval").value = p.speechIntervalSec;
+        $("cfg-haptics").checked = !!p.haptics;
+        $("cfg-earcons").checked = !!p.earcons;
+        $("cfg-autotorch").checked = !!p.autoTorch;
+        $("cfg-acoustic").checked = !!p.acousticMonitor;
+        $("cfg-gps").checked = !!p.gps;
+        $("cfg-lite").value = ["auto", "on", "off"].includes(p.liteMode) ? p.liteMode : "auto";
+        const quality = ["auto", "fast", "mobile", "balanced", "high"].includes(p.quality) ? p.quality : "auto";
+        document.querySelectorAll('input[name="cfg-quality"]').forEach(r => { r.checked = r.value === quality; });
+        updateOutputs();
+    }
+
+    function readForm() {
+        return {
+            lang: $("cfg-lang").value,
+            speechRate: parseFloat($("cfg-rate").value),
+            voiceEngine: $("cfg-engine").value,
+            voiceName: $("cfg-voice").value,
+            speechIntervalSec: parseFloat($("cfg-interval").value),
+            haptics: $("cfg-haptics").checked,
+            earcons: $("cfg-earcons").checked,
+            autoTorch: $("cfg-autotorch").checked,
+            acousticMonitor: $("cfg-acoustic").checked,
+            gps: $("cfg-gps").checked,
+            liteMode: $("cfg-lite").value,
+            quality: (document.querySelector('input[name="cfg-quality"]:checked') || { value: "auto" }).value
+        };
+    }
+
+    function updateOutputs() {
+        $("rate-val").textContent = parseFloat($("cfg-rate").value).toFixed(2) + "×";
+        $("interval-val").textContent = $("cfg-interval").value + " s";
+    }
+
+    function saveSettings() {
+        AMCS.applyLite(AMCS.setPrefs(readForm()));
+        AMCS.toast({ title: "Preferences saved", message: "They apply the next time you open the assistant.", type: "success" });
+    }
+
+    async function resetSettings() {
+        const ok = await AMCS.confirm({ title: "Reset preferences?", message: "Voice, feedback and sensor settings return to their defaults.", icon: "fa-rotate-left", confirmText: "Reset" });
+        if (!ok) return;
+        const defaults = AMCS.resetPrefs();
+        fillForm(defaults);
+        AMCS.applyLite(defaults);
+        AMCS.toast({ title: "Preferences reset", type: "success" });
+    }
+
+    function testVoice() {
+        // Try the unsaved choices without changing the saved ones
+        const saved = AMCS.getPrefs();
+        AMCS.setPrefs(readForm());
+        const lang = $("cfg-lang").value;
+        const sample = "A chair ahead, about 2 meters away. Also a door on your right.";
+        const restore = () => AMCS.setPrefs(saved);
+        if (AMCS.voice.useDeviceVoice(lang)) {
+            AMCS.voice.speak(sample, lang, { onend: restore });
+            setTimeout(restore, 8000);
+            return;
+        }
+        restore();
+        fetch("/api/tts", {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text: sample, lang })
+        }).then(r => r.json()).then(d => {
+            if (!d.audio_url) throw new Error("no audio");
+            const a = new Audio(d.audio_url);
+            a.playbackRate = parseFloat($("cfg-rate").value) || 1;
+            return a.play();
+        }).catch(() => AMCS.toast({ title: "Server voice unavailable", message: "Check the internet connection, or choose a device voice.", type: "warning" }));
+    }
+
+    function fillVoices(selected) {
+        const sel = $("cfg-voice");
+        const lang = $("cfg-lang").value;
+        const voices = AMCS.voice.voicesFor(lang);
+        sel.innerHTML = "";
+        const auto = document.createElement("option");
+        auto.value = "";
+        const best = voices[0];
+        auto.textContent = best ? `Automatic (best: ${best.name})` : "Automatic (no device voice for this language)";
+        sel.appendChild(auto);
+        voices.forEach(v => {
+            const o = document.createElement("option");
+            o.value = v.name;
+            o.textContent = `${AMCS.voice.isNaturalVoice(v) ? "★ " : ""}${v.name} (${v.lang})`;
+            sel.appendChild(o);
+        });
+        sel.value = voices.some(v => v.name === selected) ? selected : "";
+    }
+    if ("speechSynthesis" in window && window.speechSynthesis.addEventListener) {
+        window.speechSynthesis.addEventListener("voiceschanged", () => fillVoices($("cfg-voice").value || AMCS.getPrefs().voiceName));
+    }
+    $("cfg-lang").addEventListener("change", () => fillVoices(""));
+
+    // Appearance controls mirror the header buttons
+    function syncAppearance() {
+        const mode = AMCS.store.get("amcs_theme", "system");
+        document.querySelectorAll("[data-theme-choice]").forEach(b => b.setAttribute("aria-pressed", b.dataset.themeChoice === mode ? "true" : "false"));
+        $("cfg-contrast").checked = document.body.classList.contains("high-contrast");
+    }
+    document.querySelectorAll("[data-theme-choice]").forEach(b => b.addEventListener("click", () => {
+        AMCS.setTheme(b.dataset.themeChoice);
+        syncAppearance();
+    }));
+    $("cfg-contrast").addEventListener("change", (e) => AMCS.setContrast(e.target.checked));
+    $("theme-toggle").addEventListener("click", () => setTimeout(syncAppearance, 0));
+    $("contrast-toggle").addEventListener("click", () => setTimeout(syncAppearance, 0));
+
+    $("cfg-rate").addEventListener("input", updateOutputs);
+    $("cfg-interval").addEventListener("input", updateOutputs);
+
+    async function loadPlaces() {
+        const list = $("places-list");
+        try {
+            const data = await (await fetch("/api/places")).json();
+            const places = data.places || [];
+            if (!places.length) {
+                list.innerHTML = '<div class="kv-row"><span>No saved places yet.</span><span></span></div>';
+                return;
+            }
+            list.innerHTML = places.map(p => `
+                <div class="kv-row">
+                    <span>${AMCS.escapeHtml(p.name)} <small style="opacity:.6">${p.lat.toFixed(5)}, ${p.lon.toFixed(5)}</small></span>
+                    <button class="btn btn-ghost btn-sm" type="button" data-place="${AMCS.escapeHtml(p.name)}" aria-label="Delete ${AMCS.escapeHtml(p.name)}">
+                        <i class="fa-solid fa-trash" aria-hidden="true"></i> Delete
+                    </button>
+                </div>`).join("");
+            list.querySelectorAll("[data-place]").forEach(btn => btn.addEventListener("click", async () => {
+                const name = btn.dataset.place;
+                const ok = await AMCS.confirm({ title: `Delete ${name}?`, message: "Walking directions to it will no longer work.", confirmText: "Delete", danger: true });
+                if (!ok) return;
+                await fetch("/api/places", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name }) });
+                loadPlaces();
+            }));
+        } catch (e) {
+            list.innerHTML = '<div class="kv-row"><span>Could not load saved places.</span><span></span></div>';
+        }
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+        fillForm(AMCS.getPrefs());
+        syncAppearance();
+        loadPlaces();
+    });
+</script>
+{% endblock %}

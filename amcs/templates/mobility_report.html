@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Daily Mobility & Safety Report &bull; {{ report.project_title }}</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #fff;
+            color: #1e293b;
+            padding: 36px;
+            max-width: 800px;
+            margin: 0 auto;
+            line-height: 1.5;
+        }
+        .header {
+            border-bottom: 2px solid #3b82f6;
+            padding-bottom: 16px;
+            margin-bottom: 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+        .title {
+            font-size: 20px;
+            font-weight: 700;
+            color: #0f172a;
+        }
+        .subtitle {
+            font-size: 13px;
+            color: #64748b;
+        }
+        .meta-time {
+            font-size: 12px;
+            color: #94a3b8;
+            text-align: right;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        .stat-card {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 14px;
+        }
+        .stat-val {
+            font-size: 22px;
+            font-weight: 700;
+            color: #2563eb;
+        }
+        .stat-label {
+            font-size: 12px;
+            color: #64748b;
+            text-transform: uppercase;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+            margin-top: 14px;
+        }
+        th, td {
+            border-bottom: 1px solid #e2e8f0;
+            padding: 10px;
+            text-align: left;
+        }
+        th {
+            background: #f1f5f9;
+            color: #475569;
+        }
+        .badge-danger { color: #dc2626; font-weight: 600; }
+        .badge-success { color: #16a34a; font-weight: 600; }
+        .badge-info { color: #2563eb; font-weight: 600; }
+        .print-btn {
+            background: #2563eb;
+            color: #fff;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            float: right;
+            margin-bottom: 16px;
+        }
+        @media print {
+            .print-btn { display: none; }
+            body { padding: 0; }
+        }
+    </style>
+</head>
+<body>
+    <button class="print-btn" onclick="window.print()">Print / Save as PDF</button>
+    <div class="header">
+        <div>
+            <div class="title">{{ report.project_title }}</div>
+            <div class="subtitle">Daily Mobility, Obstacle & Caregiver Safety Report &bull; {{ report.college }}</div>
+        </div>
+        <div class="meta-time">
+            Generated: {{ report.generated_at }}<br>
+            Status: Active
+        </div>
+    </div>
+
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-val">{{ report.total_distance_m }} m</div>
+            <div class="stat-label">Total Distance Walked</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-val">{{ report.duration_minutes }} min</div>
+            <div class="stat-label">Session Duration</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-val">{{ report.waypoints_recorded }}</div>
+            <div class="stat-label">GPS Waypoints Plotted</div>
+        </div>
+    </div>
+
+    <h3 style="font-size:15px; margin-top:20px; color:#334155;">Geofence & Safety Perimeter Summary</h3>
+    <table>
+        <tr>
+            <td><strong>Designated Safe Zone Center</strong></td>
+            <td>SKIT Campus, Jaipur (Radius: {{ report.safe_zone_radius_m }}m)</td>
+        </tr>
+        <tr>
+            <td><strong>Current Distance from Center</strong></td>
+            <td>{{ report.current_distance_from_center_m }} meters</td>
+        </tr>
+        <tr>
+            <td><strong>Geofence Status</strong></td>
+            <td>
+                {% if report.geofence_breached %}
+                    <span class="badge-danger">⚠️ Boundary Breached (User outside safe perimeter)</span>
+                {% else %}
+                    <span class="badge-success">✓ Within Safe Boundary</span>
+                {% endif %}
+            </td>
+        </tr>
+        <tr>
+            <td><strong>Emergency SOS Status</strong></td>
+            <td>
+                {% if report.sos_active %}
+                    <span class="badge-danger">🚨 ACTIVE EMERGENCY ALERT</span>
+                {% else %}
+                    <span class="badge-success">Normal (No active SOS)</span>
+                {% endif %}
+            </td>
+        </tr>
+    </table>
+
+    <h3 style="font-size:15px; margin-top:24px; color:#334155;">Recent Detections & Caregiver Activity Feed</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Time</th>
+                <th>Type</th>
+                <th>Event Description</th>
+                <th>Severity</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in report.recent_events %}
+            <tr>
+                <td>{{ item.timestamp }}</td>
+                <td>{{ item.type|upper }}</td>
+                <td>{{ item.description }}</td>
+                <td>
+                    {% if item.severity == 'danger' %}
+                        <span class="badge-danger">CRITICAL</span>
+                    {% elif item.severity == 'warning' %}
+                        <span style="color:#d97706; font-weight:600;">CAUTION</span>
+                    {% else %}
+                        <span class="badge-info">INFO</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>

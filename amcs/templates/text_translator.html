@@ -1,0 +1,420 @@
+{% extends "base.html" %}
+
+{% block title %}Sign Translator &middot; {{ project_title }}{% endblock %}
+
+{% block content %}
+<div class="ocr-layout">
+
+    <header class="page-header">
+        <div>
+            <span class="eyebrow"><i class="fa-solid fa-language" aria-hidden="true"></i> Sign translator</span>
+            <h1>Read any sign, in any language</h1>
+            <p>Capture or upload a sign, notice or label. AMCS finds the text, reads it and translates it, then speaks the result.</p>
+        </div>
+        <div class="workflow-steps" aria-label="Processing pipeline">
+            <span class="step-pill"><i class="fa-solid fa-camera" aria-hidden="true"></i> Capture</span>
+            <i class="fa-solid fa-chevron-right step-arrow" aria-hidden="true"></i>
+            <span class="step-pill"><i class="fa-solid fa-crop-simple" aria-hidden="true"></i> Detect</span>
+            <i class="fa-solid fa-chevron-right step-arrow" aria-hidden="true"></i>
+            <span class="step-pill"><i class="fa-solid fa-font" aria-hidden="true"></i> OCR</span>
+            <i class="fa-solid fa-chevron-right step-arrow" aria-hidden="true"></i>
+            <span class="step-pill active"><i class="fa-solid fa-earth-asia" aria-hidden="true"></i> Translate</span>
+        </div>
+    </header>
+
+    <div class="ocr-grid">
+
+        <!-- Input -->
+        <section class="card ocr-input-card" aria-labelledby="source-heading">
+            <div class="card-head" style="margin-bottom:0">
+                <h3 id="source-heading"><i class="fa-solid fa-image" aria-hidden="true"></i> Image source</h3>
+                <div class="segmented" role="group" aria-label="Image source">
+                    <button type="button" id="tab-camera" class="active" aria-pressed="true" onclick="switchOCRSource('camera')">
+                        <i class="fa-solid fa-camera" aria-hidden="true"></i> Camera
+                    </button>
+                    <button type="button" id="tab-upload" aria-pressed="false" onclick="switchOCRSource('upload')">
+                        <i class="fa-solid fa-upload" aria-hidden="true"></i> Upload
+                    </button>
+                </div>
+            </div>
+
+            <div id="ocr-camera-box" class="ocr-preview-box">
+                <video id="ocr-webcam" autoplay playsinline muted aria-label="Camera preview"></video>
+                <div id="ocr-camera-hint" class="camera-hint" hidden></div>
+                <div id="scan-frame" class="scan-frame" aria-hidden="true"></div>
+                <canvas id="ocr-canvas" hidden></canvas>
+            </div>
+
+            <div id="ocr-upload-box" class="ocr-upload-zone" hidden>
+                <input type="file" id="sign-file-input" accept="image/*" onchange="handleSignImageUpload(event)" hidden>
+                <div class="upload-dropzone" id="upload-dropzone" role="button" tabindex="0"
+                     onclick="document.getElementById('sign-file-input').click()"
+                     onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();document.getElementById('sign-file-input').click();}">
+                    <i class="fa-solid fa-cloud-arrow-up" aria-hidden="true"></i>
+                    <p>Drop a photo of a sign here</p>
+                    <small>or click to browse &middot; PNG, JPG, WebP</small>
+                </div>
+                <div class="upload-preview" id="upload-preview" hidden>
+                    <img id="upload-preview-img" src="" alt="Uploaded sign">
+                    <button class="btn btn-sm btn-outline" type="button" onclick="clearUpload()" style="background:var(--bg-elev)">
+                        <i class="fa-solid fa-xmark" aria-hidden="true"></i> Remove
+                    </button>
+                </div>
+            </div>
+
+            <div class="sample-presets">
+                <span class="preset-label">Try a sample:</span>
+                <button class="btn btn-xs btn-outline" type="button" onclick="loadSampleSign('railway')"><i class="fa-solid fa-train" aria-hidden="true"></i> Railway station</button>
+                <button class="btn btn-xs btn-outline" type="button" onclick="loadSampleSign('hospital')"><i class="fa-solid fa-hospital" aria-hidden="true"></i> Hospital</button>
+                <button class="btn btn-xs btn-outline" type="button" onclick="loadSampleSign('exit')"><i class="fa-solid fa-person-running" aria-hidden="true"></i> Emergency exit</button>
+                <button class="btn btn-xs btn-outline" type="button" onclick="loadSampleSign('stop')"><i class="fa-solid fa-hand" aria-hidden="true"></i> Stop sign</button>
+            </div>
+
+            <button class="btn btn-primary btn-block btn-lg" id="btn-scan-sign" type="button" onclick="processSignboard()">
+                <i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i> Read &amp; translate
+            </button>
+        </section>
+
+        <!-- Results -->
+        <section class="card ocr-results-card" aria-labelledby="results-heading">
+            <div class="card-head" style="margin-bottom:0">
+                <h3 id="results-heading"><i class="fa-solid fa-layer-group" aria-hidden="true"></i> Translations</h3>
+                <span class="badge badge-inactive" id="detected-tag">Awaiting scan</span>
+            </div>
+
+            <div class="detected-raw-box">
+                <span class="sub-label">Detected text</span>
+                <h2 id="ocr-extracted-heading" class="raw-text-highlight" aria-live="polite">Point the camera at a sign, then press Read &amp; translate.</h2>
+            </div>
+
+            <img id="ocr-annotated-img" alt="Sign with detected text regions highlighted" hidden style="border-radius:var(--r-md);border:1px solid var(--line);max-height:220px;object-fit:contain;background:#05070a;width:100%">
+
+            <div>
+                <div class="section-label-flex" style="margin-bottom:8px">
+                    <span class="sub-label">Languages</span>
+                    <span class="meta-tag" id="lang-count"></span>
+                </div>
+                <div class="lang-chips" id="lang-chips" role="group" aria-label="Translate into"></div>
+            </div>
+
+            <div class="translations-grid" id="translations-container"></div>
+        </section>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    const SUPPORTED_LANGS = {{ languages|tojson }};
+    const DEFAULT_TARGETS = ["en", "hi", "es", "fr", "de", "zh-CN", "ja", "ar"];
+    const SAMPLES = {
+        railway: { raw: "Railway Station", en: "Railway Station", hi: "रेलवे स्टेशन", fr: "Gare ferroviaire", es: "Estación de tren", "zh-CN": "火车站", ja: "鉄道駅", ar: "محطة القطار", de: "Bahnhof" },
+        hospital: { raw: "Emergency Hospital & Clinic", en: "Emergency Hospital & Clinic", hi: "आपातकालीन अस्पताल और क्लिनिक", fr: "Hôpital et clinique d'urgence", es: "Hospital de urgencias y clínica", "zh-CN": "急诊医院和诊所", ja: "救急病院および診療所", ar: "مستشفى وعيادة الطوارئ", de: "Notfallkrankenhaus und Klinik" },
+        exit: { raw: "Emergency Exit Ahead", en: "Emergency Exit Ahead", hi: "आगे आपातकालीन निकास", fr: "Sortie de secours devant", es: "Salida de emergencia adelante", "zh-CN": "前方紧急出口", ja: "前方非常口", ar: "مخرج الطوارئ في الأمام", de: "Notausgang voraus" },
+        stop: { raw: "STOP Pedestrian Crossing", en: "STOP Pedestrian Crossing", hi: "रुकिए पैदल पार पथ", fr: "ARRÊT Passage piéton", es: "ALTO Cruce de peatones", "zh-CN": "停 人行横道", ja: "止まれ 歩行者横断歩道", ar: "قف معبر مشاة", de: "HALT Fußgängerüberweg" }
+    };
+
+    let activeOCRSource = "camera";
+    let ocrStream = null;
+    let selectedLangs = loadSelectedLangs();
+    let lastResults = {};   // lang -> translated text
+    const preferredSpeechLang = (AMCS.getPrefs().lang) || "{{ default_lang }}";
+
+    function loadSelectedLangs() {
+        try {
+            const saved = JSON.parse(AMCS.store.get("amcs_ocr_langs") || "null");
+            if (Array.isArray(saved) && saved.length) return saved.filter(l => SUPPORTED_LANGS[l]);
+        } catch (e) {}
+        return DEFAULT_TARGETS.slice();
+    }
+
+    // ── Language chips & result cards ──
+    function renderLangChips() {
+        const wrap = document.getElementById("lang-chips");
+        wrap.innerHTML = "";
+        Object.entries(SUPPORTED_LANGS).forEach(([code, meta]) => {
+            const b = document.createElement("button");
+            b.type = "button";
+            b.className = "lang-chip";
+            b.setAttribute("aria-pressed", selectedLangs.includes(code) ? "true" : "false");
+            b.textContent = `${meta.flag} ${meta.name}`;
+            b.addEventListener("click", () => {
+                if (selectedLangs.includes(code)) {
+                    if (selectedLangs.length === 1) { AMCS.toast({ title: "Keep at least one language", type: "warning" }); return; }
+                    selectedLangs = selectedLangs.filter(c => c !== code);
+                } else {
+                    selectedLangs.push(code);
+                }
+                AMCS.store.set("amcs_ocr_langs", JSON.stringify(selectedLangs));
+                renderLangChips();
+                renderCards();
+            });
+            wrap.appendChild(b);
+        });
+        document.getElementById("lang-count").textContent = `${selectedLangs.length} selected`;
+    }
+
+    function renderCards() {
+        const grid = document.getElementById("translations-container");
+        grid.innerHTML = "";
+        selectedLangs.forEach(code => {
+            const meta = SUPPORTED_LANGS[code];
+            if (!meta) return;
+            const text = lastResults[code];
+            const card = document.createElement("div");
+            card.className = "translation-item card-sub" + (code === preferredSpeechLang ? " highlight-card" : "");
+            card.innerHTML = `
+                <div class="t-header">
+                    <span class="t-lang">${AMCS.escapeHtml(meta.flag + " " + meta.native)}${meta.native !== meta.name ? " · " + AMCS.escapeHtml(meta.name) : ""}</span>
+                    <div class="t-actions">
+                        <button class="btn btn-xs btn-ghost btn-speech" type="button" data-act="speak" aria-label="Speak ${AMCS.escapeHtml(meta.name)}"><i class="fa-solid fa-volume-high" aria-hidden="true"></i></button>
+                        <button class="btn btn-xs btn-ghost btn-speech" type="button" data-act="copy" aria-label="Copy ${AMCS.escapeHtml(meta.name)} text"><i class="fa-regular fa-copy" aria-hidden="true"></i></button>
+                    </div>
+                </div>
+                <div class="t-text ${text ? "" : "placeholder"}" id="t-${code}" lang="${code}">${text ? AMCS.escapeHtml(text) : "Scan a sign to translate"}</div>`;
+            card.querySelector('[data-act="speak"]').addEventListener("click", () => speakTextFromCard(code));
+            card.querySelector('[data-act="copy"]').addEventListener("click", () => copyTranslation(code));
+            grid.appendChild(card);
+        });
+    }
+
+    // ── Camera / upload ──
+    let ocrStarting = null;
+    async function initOCRCamera() {
+        if (ocrStarting || ocrStream) return ocrStarting;
+        const hint = document.getElementById("ocr-camera-hint");
+        ocrStarting = (async () => {
+            try {
+                const cam = await AMCS.openCamera({ facingMode: "environment", width: 1280, height: 720 });
+                ocrStream = cam.stream;
+                const video = document.getElementById("ocr-webcam");
+                video.srcObject = ocrStream;
+                try { await video.play(); } catch (e) {}
+                hint.hidden = true;
+                const thisStream = ocrStream;
+                AMCS.guardCameraStream(thisStream, {
+                    onReconnecting: () => {
+                        if (ocrStream !== thisStream) return;
+                        thisStream.getTracks().forEach(t => t.stop());
+                        ocrStream = null;
+                        hint.hidden = false;
+                        hint.textContent = "Reconnecting camera…";
+                    },
+                    reopen: () => { if (!ocrStream && activeOCRSource === "camera") initOCRCamera(); },
+                    onGiveUp: () => {
+                        if (ocrStream === thisStream) ocrStream = null;
+                        hint.hidden = false;
+                        hint.innerHTML = `<div><strong>Camera keeps stopping</strong><br>Close other apps that use the camera, then try again.<br>
+                            <button class="btn btn-sm btn-outline" type="button" style="margin-top:10px;background:var(--bg-elev);color:var(--text)" onclick="initOCRCamera()">Try again</button></div>`;
+                    }
+                });
+            } catch (e) {
+                console.error("[AMCS] OCR camera error:", e.name, e.message, e.attempts || "");
+                const msg = AMCS.describeCameraError(e);
+                hint.hidden = false;
+                hint.innerHTML = `<div><strong>${AMCS.escapeHtml(msg.title)}</strong><br>${AMCS.escapeHtml(msg.text)}<br>
+                    <button class="btn btn-sm btn-outline" type="button" style="margin-top:10px;background:var(--bg-elev);color:var(--text)" onclick="initOCRCamera()">Try again</button>
+                    <span style="display:block;margin-top:6px">Or switch to Upload to use a photo.</span></div>`;
+            } finally {
+                ocrStarting = null;
+            }
+        })();
+        return ocrStarting;
+    }
+    function stopOCRCamera() {
+        if (ocrStream) { ocrStream.getTracks().forEach(t => t.stop()); ocrStream = null; }
+    }
+
+    function switchOCRSource(source) {
+        activeOCRSource = source;
+        const cam = source === "camera";
+        const tc = document.getElementById("tab-camera"), tu = document.getElementById("tab-upload");
+        tc.classList.toggle("active", cam); tc.setAttribute("aria-pressed", cam);
+        tu.classList.toggle("active", !cam); tu.setAttribute("aria-pressed", !cam);
+        document.getElementById("ocr-camera-box").hidden = !cam;
+        document.getElementById("ocr-upload-box").hidden = cam;
+        if (cam) initOCRCamera(); else stopOCRCamera();
+    }
+
+    function readImageFile(file) {
+        if (!file || !file.type.startsWith("image/")) {
+            AMCS.toast({ title: "Not an image", message: "Choose a PNG, JPG or WebP photo.", type: "warning" });
+            return;
+        }
+        if (file.size > 12 * 1024 * 1024) {
+            AMCS.toast({ title: "Image too large", message: "Use a photo under 12 MB.", type: "warning" });
+            return;
+        }
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+            document.getElementById("upload-preview-img").src = evt.target.result;
+            document.getElementById("upload-preview").hidden = false;
+            document.getElementById("upload-dropzone").hidden = true;
+        };
+        reader.readAsDataURL(file);
+    }
+    function handleSignImageUpload(e) { readImageFile(e.target.files[0]); }
+    function clearUpload() {
+        document.getElementById("upload-preview-img").src = "";
+        document.getElementById("upload-preview").hidden = true;
+        document.getElementById("upload-dropzone").hidden = false;
+        document.getElementById("sign-file-input").value = "";
+    }
+
+    (function setupDropzone() {
+        const dz = document.getElementById("upload-dropzone");
+        ["dragenter", "dragover"].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.add("dragover"); }));
+        ["dragleave", "drop"].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.remove("dragover"); }));
+        dz.addEventListener("drop", e => readImageFile(e.dataTransfer.files[0]));
+        // Paste an image from the clipboard
+        document.addEventListener("paste", e => {
+            const item = [...(e.clipboardData?.items || [])].find(i => i.type.startsWith("image/"));
+            if (item) { switchOCRSource("upload"); readImageFile(item.getAsFile()); }
+        });
+    })();
+
+    // ── Results ──
+    function setDetectedText(text, tag, tagClass) {
+        document.getElementById("ocr-extracted-heading").textContent = text;
+        const t = document.getElementById("detected-tag");
+        t.textContent = tag;
+        t.className = "badge " + tagClass;
+    }
+
+    function loadSampleSign(type) {
+        const item = SAMPLES[type];
+        if (!item) return;
+        setDetectedText(item.raw, "Sample", "badge-primary");
+        document.getElementById("ocr-annotated-img").hidden = true;
+        lastResults = {};
+        Object.entries(item).forEach(([k, v]) => { if (k !== "raw") lastResults[k] = v; });
+        renderCards();
+        const lang = lastResults[preferredSpeechLang] ? preferredSpeechLang : "en";
+        speakDirectText(lastResults[lang], lang);
+    }
+
+    async function processSignboard() {
+        let base64Image = null;
+        if (activeOCRSource === "camera") {
+            const video = document.getElementById("ocr-webcam");
+            if (!ocrStream || video.readyState < 2) {
+                AMCS.toast({ title: "Camera not ready", message: "Allow camera access, or upload a photo instead.", type: "warning" });
+                return;
+            }
+            const canvas = document.getElementById("ocr-canvas");
+            canvas.width = video.videoWidth || 640;
+            canvas.height = video.videoHeight || 480;
+            canvas.getContext("2d").drawImage(video, 0, 0, canvas.width, canvas.height);
+            base64Image = canvas.toDataURL("image/jpeg", 0.88);
+        } else {
+            const img = document.getElementById("upload-preview-img");
+            if (img.src && img.src.startsWith("data:image")) {
+                base64Image = img.src;
+            } else {
+                AMCS.toast({ title: "No image yet", message: "Upload or drop a photo of a sign first.", type: "warning" });
+                return;
+            }
+        }
+
+        const btn = document.getElementById("btn-scan-sign");
+        const frame = document.getElementById("scan-frame");
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i> Reading &amp; translating…';
+        frame.classList.add("scanning");
+        setDetectedText("Reading the sign…", "Processing", "badge-warning");
+
+        try {
+            const res = await fetch("/api/ocr_translate", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ image: base64Image, target_langs: selectedLangs })
+            });
+            const data = await res.json();
+            if (!res.ok || data.status !== "success") throw new Error(data.error || "OCR failed");
+
+            const annotated = document.getElementById("ocr-annotated-img");
+            if (data.annotated_image && data.raw_text) {
+                annotated.src = data.annotated_image.startsWith("data:") ? data.annotated_image : "data:image/jpeg;base64," + data.annotated_image;
+                annotated.hidden = false;
+            } else {
+                annotated.hidden = true;
+            }
+
+            if (!data.raw_text) {
+                setDetectedText("No readable text found. Move closer, hold steady, and make sure the sign is well lit.", "No text", "badge-warning");
+                lastResults = {};
+                renderCards();
+                speakDirectText("No readable text found.", "en");
+                return;
+            }
+
+            setDetectedText(data.raw_text, "Text found", "badge-safe");
+            lastResults = {};
+            Object.entries(data.translations || {}).forEach(([k, obj]) => { lastResults[k] = obj.translated_text; });
+            renderCards();
+            const lang = lastResults[preferredSpeechLang] ? preferredSpeechLang : (lastResults.en ? "en" : Object.keys(lastResults)[0]);
+            if (lang) speakDirectText(lastResults[lang], lang);
+        } catch (e) {
+            console.error(e);
+            setDetectedText("Something went wrong while reading the sign. Please try again.", "Error", "badge-danger");
+            AMCS.toast({ title: "Scan failed", message: e.message, type: "error" });
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i> Read &amp; translate';
+            frame.classList.remove("scanning");
+        }
+    }
+
+    function speakTextFromCard(lang) {
+        if (lastResults[lang]) speakDirectText(lastResults[lang], lang);
+        else AMCS.toast({ title: "Nothing to speak yet", message: "Scan a sign or load a sample first." });
+    }
+
+    async function copyTranslation(lang) {
+        const text = lastResults[lang];
+        if (!text) return;
+        try {
+            await navigator.clipboard.writeText(text);
+            AMCS.toast({ title: "Copied", message: text, type: "success", duration: 2000 });
+        } catch (e) {
+            AMCS.toast({ title: "Copy failed", message: "Clipboard access is blocked in this browser.", type: "warning" });
+        }
+    }
+
+    async function speakDirectText(text, lang) {
+        if (!text) return;
+        try {
+            const res = await fetch("/api/tts", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ text, lang, force: true })
+            });
+            const data = await res.json();
+            if (data.audio_url) {
+                const player = document.getElementById("global-speech-player");
+                player.src = data.audio_url;
+                player.play().catch(() => useBrowserSpeech(text, lang));
+            } else {
+                useBrowserSpeech(text, lang);
+            }
+        } catch (e) {
+            useBrowserSpeech(text, lang);
+        }
+    }
+
+    function useBrowserSpeech(text, lang) {
+        if ("speechSynthesis" in window) {
+            window.speechSynthesis.cancel();
+            const u = new SpeechSynthesisUtterance(text);
+            u.lang = lang;
+            u.rate = AMCS.getPrefs().speechRate || 0.95;
+            window.speechSynthesis.speak(u);
+        }
+    }
+
+    renderLangChips();
+    renderCards();
+    initOCRCamera();
+    window.addEventListener("pagehide", stopOCRCamera);
+</script>
+{% endblock %}

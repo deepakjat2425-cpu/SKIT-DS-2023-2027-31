@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+
+{% block title %}Caregiver Dashboard &middot; {{ project_title }}{% endblock %}
+
+{% block content %}
+<div class="caregiver-layout">
+
+    <header class="page-header">
+        <div>
+            <span class="eyebrow"><i class="fa-solid fa-shield-heart" aria-hidden="true"></i> Caregiver</span>
+            <h1>Live safety dashboard</h1>
+            <p>Location, geofence and alerts from the AMCS user's device. Updates every few seconds.</p>
+        </div>
+        <a href="/api/caregiver/export_report" target="_blank" rel="noopener" class="btn btn-outline">
+            <i class="fa-solid fa-file-lines" aria-hidden="true"></i> Daily report
+        </a>
+    </header>
+
+    <!-- Status overview -->
+    <section class="kpi-grid" aria-label="Status overview">
+        <div class="kpi-card">
+            <div class="kpi-icon kpi-blue" aria-hidden="true"><i class="fa-solid fa-satellite-dish"></i></div>
+            <div class="kpi-body">
+                <span class="kpi-label">Tracker</span>
+                <h4 id="user-status-text" class="text-success">Connecting…</h4>
+                <small id="last-ping-time">Waiting for first update</small>
+            </div>
+        </div>
+
+        <div class="kpi-card" id="sos-kpi-card">
+            <div class="kpi-icon kpi-green" id="sos-icon-container" aria-hidden="true">
+                <i class="fa-solid fa-shield-heart" id="sos-kpi-icon"></i>
+            </div>
+            <div class="kpi-body" aria-live="assertive">
+                <span class="kpi-label">Safety &amp; SOS</span>
+                <h4 id="sos-status-text" class="text-success">Safe &middot; Normal</h4>
+                <button class="btn btn-xs btn-danger" id="kpi-resolve-btn" type="button" style="display:none;" onclick="resolveCaregiverSOS()">
+                    <i class="fa-solid fa-check" aria-hidden="true"></i> Mark resolved
+                </button>
+            </div>
+        </div>
+
+        <div class="kpi-card">
+            <div class="kpi-icon kpi-amber" id="geofence-icon-container" aria-hidden="true">
+                <i class="fa-solid fa-draw-polygon"></i>
+            </div>
+            <div class="kpi-body">
+                <span class="kpi-label">Safe zone &middot; {{ geofence_radius }} m</span>
+                <h4 id="geofence-status-text" class="text-primary">Checking…</h4>
+                <small id="geofence-distance">Centre: SKIT Jaipur</small>
+            </div>
+        </div>
+
+        <div class="kpi-card">
+            <div class="kpi-icon kpi-purple" aria-hidden="true"><i class="fa-solid fa-location-crosshairs"></i></div>
+            <div class="kpi-body">
+                <span class="kpi-label">GPS position</span>
+                <h4 id="coord-display" class="mono">{{ '%.4f'|format(location.latitude) }}, {{ '%.4f'|format(location.longitude) }}</h4>
+                <small id="accuracy-display">Accuracy ±{{ location.accuracy|round|int }} m</small>
+            </div>
+        </div>
+    </section>
+
+    <div class="dashboard-grid">
+
+        <!-- Map -->
+        <section class="card map-wrapper" aria-labelledby="map-heading">
+            <div class="card-head">
+                <div class="title-with-badge">
+                    <h3 id="map-heading"><i class="fa-solid fa-map-location-dot" aria-hidden="true"></i> Live map</h3>
+                    <span class="badge badge-primary badge-live">Auto-sync</span>
+                </div>
+                <div class="map-actions">
+                    <a id="gmaps-link" class="btn btn-sm btn-outline" href="https://www.google.com/maps?q={{ location.latitude }},{{ location.longitude }}" target="_blank" rel="noopener">
+                        <i class="fa-solid fa-diamond-turn-right" aria-hidden="true"></i> Google Maps
+                    </a>
+                    <button class="btn btn-sm btn-outline" type="button" onclick="reloadFoliumMap()" aria-label="Refresh map">
+                        <i class="fa-solid fa-arrows-rotate" aria-hidden="true"></i><span>Refresh</span>
+                    </button>
+                    <button class="btn btn-sm btn-outline" type="button" onclick="toggleMapFullscreen()" aria-label="Show map full screen">
+                        <i class="fa-solid fa-expand" aria-hidden="true"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="folium-container" id="folium-frame-box">
+                <iframe id="folium-map-iframe" src="/api/map" title="Live map of the user's location" loading="lazy"></iframe>
+            </div>
+
+            <div class="map-footer-legend" aria-label="Map legend">
+                <span class="legend-item"><span class="legend-dot dot-blue"></span> Current location</span>
+                <span class="legend-item"><span class="legend-dot dot-trail"></span> Movement trail</span>
+                <span class="legend-item"><span class="legend-dot dot-green"></span> {{ geofence_radius }} m safe zone</span>
+                <span class="legend-item"><span class="legend-dot dot-red"></span> SOS trigger</span>
+            </div>
+        </section>
+
+        <div class="side-stack">
+
+            <!-- Tele-assistance -->
+            <section class="card" aria-labelledby="tele-heading">
+                <div class="card-head">
+                    <div class="title-with-badge">
+                        <h3 id="tele-heading"><i class="fa-solid fa-video" aria-hidden="true"></i> See what they see</h3>
+                        <span class="badge badge-inactive" id="teleassist-badge">Standby</span>
+                    </div>
+                </div>
+                <p class="card-desc">View the user's camera and speak guidance into their ear. Frames arrive while their assistant is running.</p>
+                <button class="btn btn-primary btn-block" id="teleassist-btn" type="button" onclick="toggleTeleAssistCall()">
+                    <i class="fa-solid fa-video" aria-hidden="true"></i> Start video call
+                </button>
+
+                <div id="teleassist-viewport" class="teleassist-viewport" style="display:none; margin-top:12px;">
+                    <div id="teleassist-placeholder" class="feed-placeholder">Waiting for the first frame…</div>
+                    <img id="teleassist-feed-img" src="" alt="Live view from the user's camera" style="display:none;">
+                    <form class="intercom-row" onsubmit="event.preventDefault(); sendCaregiverIntercomText();">
+                        <label for="caregiver-intercom-input" class="sr-only">Message to speak to the user</label>
+                        <input type="text" id="caregiver-intercom-input" class="form-control" placeholder="Speak guidance to the user…" autocomplete="off" maxlength="200">
+                        <button class="btn btn-primary" type="submit" aria-label="Send voice message">
+                            <i class="fa-solid fa-paper-plane" aria-hidden="true"></i>
+                        </button>
+                    </form>
+                </div>
+            </section>
+
+            <!-- Activity feed -->
+            <section class="card stream-wrapper" aria-labelledby="feed-heading">
+                <div class="card-head">
+                    <div class="title-with-badge">
+                        <h3 id="feed-heading"><i class="fa-solid fa-list-ul" aria-hidden="true"></i> Activity</h3>
+                        <span class="badge badge-inactive" id="log-count-badge">0 events</span>
+                    </div>
+                    <button class="btn btn-outline-icon" type="button" onclick="clearCaregiverFeed()" title="Clear feed" aria-label="Clear activity feed">
+                        <i class="fa-solid fa-broom" aria-hidden="true"></i>
+                    </button>
+                </div>
+
+                <div class="activity-feed-list" id="activity-feed" aria-live="polite" aria-relevant="additions">
+                    <div class="activity-empty">
+                        <i class="fa-solid fa-satellite fa-bounce" aria-hidden="true"></i>
+                        <p>Waiting for detections and movement updates…</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Quick actions -->
+            <section class="card caregiver-quick-actions" aria-label="Quick actions">
+                <button class="btn btn-outline btn-block" type="button" onclick="sendCaregiverChime()">
+                    <i class="fa-solid fa-bullhorn" aria-hidden="true"></i> Check in with user
+                </button>
+                <a id="caregiver-wa-btn" href="https://api.whatsapp.com/send?text=AMCS%20Caregiver%20status" target="_blank" rel="noopener" class="btn btn-whatsapp btn-block">
+                    <i class="fa-brands fa-whatsapp" aria-hidden="true"></i> Share status on WhatsApp
+                </a>
+            </section>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/caregiver.js') }}?v={{ asset_version }}"></script>
+{% endblock %}

@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>{% block title %}{{ project_title }}{% endblock %}</title>
+    <meta name="description" content="Assistive vision-to-speech, multilingual sign translation and caregiver safety mapping for visually impaired users.">
+
+    <!-- Apply saved theme before first paint to avoid a flash -->
+    <script>
+        (function () {
+            try {
+                var mode = localStorage.getItem("amcs_theme") || "system";
+                var light = mode === "light" || (mode === "system" && window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches);
+                document.documentElement.setAttribute("data-theme", light ? "light" : "dark");
+            } catch (e) {}
+        })();
+    </script>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Sora:wght@500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v={{ asset_version }}">
+
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='icons/icon.svg') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/icon-192.png') }}">
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+    <meta name="theme-color" content="#06070b">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <a class="skip-link" href="#main">Skip to main content</a>
+
+    {% set nav_items = [
+        ('/', 'fa-eye', 'Assist', 'Assist'),
+        ('/ocr', 'fa-language', 'Sign Translator', 'Signs'),
+        ('/caregiver', 'fa-map-location-dot', 'Caregiver', 'Caregiver'),
+        ('/sandbox', 'fa-flask-vial', 'Viva Sandbox', 'Sandbox'),
+        ('/about', 'fa-circle-info', 'About', 'About'),
+    ] %}
+
+    <header class="app-header">
+        <div class="header-inner">
+            <a href="/" class="brand" aria-label="{{ project_title }} home">
+                <span class="brand-mark" aria-hidden="true"><i class="fa-solid fa-eye"></i></span>
+                <span class="brand-text">
+                    <span class="brand-title">AMCS</span>
+                    <span class="brand-subtitle">SKIT Jaipur &middot; Dept. of CSE</span>
+                </span>
+            </a>
+
+            <nav class="nav-menu" aria-label="Primary">
+                {% for href, icon, label, short in nav_items %}
+                <a href="{{ href }}" class="nav-link" {% if request.path == href %}aria-current="page"{% endif %}>
+                    <i class="fa-solid {{ icon }}" aria-hidden="true"></i><span>{{ label }}</span>
+                </a>
+                {% endfor %}
+            </nav>
+
+            <div class="header-actions">
+                <span id="server-status" class="status-pill" title="Server connected">
+                    <span class="status-dot" aria-hidden="true"></span><span class="status-label">Online</span>
+                </span>
+                <button id="theme-toggle" class="btn btn-icon" type="button" title="Theme" aria-label="Change theme">
+                    <i class="fa-solid fa-circle-half-stroke" aria-hidden="true"></i>
+                </button>
+                <button id="contrast-toggle" class="btn btn-icon" type="button" title="High contrast mode" aria-label="High contrast mode" aria-pressed="false">
+                    <i class="fa-solid fa-low-vision" aria-hidden="true"></i>
+                </button>
+                <a href="/settings" class="btn btn-icon" title="Settings" aria-label="Settings" {% if request.path == '/settings' %}aria-current="page"{% endif %}>
+                    <i class="fa-solid fa-gear" aria-hidden="true"></i>
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Global emergency banner (visible only while an SOS is active) -->
+    <div id="global-sos-alert" class="sos-banner" role="alert" hidden>
+        <div class="sos-content">
+            <div class="sos-left">
+                <i class="fa-solid fa-triangle-exclamation fa-beat" aria-hidden="true"></i>
+                <span id="global-sos-text">Emergency SOS alert active</span>
+            </div>
+            <button id="global-sos-resolve" class="btn btn-sm btn-light" type="button">Mark resolved</button>
+        </div>
+    </div>
+
+    <main id="main" class="main-container" tabindex="-1">
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="app-footer">
+        <div class="footer-inner">
+            <span>{{ project_title }}</span>
+            <span>{{ college }} &middot; <a href="/about">Project team</a></span>
+        </div>
+    </footer>
+
+    <!-- Mobile tab bar -->
+    <nav class="tabbar" aria-label="Primary">
+        {% for href, icon, label, short in nav_items %}
+        <a href="{{ href }}" class="tab-link" {% if request.path == href %}aria-current="page"{% endif %}>
+            <i class="fa-solid {{ icon }}" aria-hidden="true"></i><span>{{ short }}</span>
+        </a>
+        {% endfor %}
+    </nav>
+
+    <!-- Notifications & dialogs -->
+    <div id="toast-region" class="toast-region" aria-live="polite"></div>
+
+    <dialog id="app-dialog" class="app-dialog" aria-labelledby="app-dialog-title" aria-describedby="app-dialog-message">
+        <form method="dialog" class="dialog-form">
+            <div class="dialog-head">
+                <div class="dialog-icon" aria-hidden="true"><i class="fa-solid fa-circle-question"></i></div>
+                <div>
+                    <h2 id="app-dialog-title" class="dialog-title"></h2>
+                    <p id="app-dialog-message" class="dialog-message"></p>
+                </div>
+            </div>
+            <div class="dialog-input-wrap form-group" hidden>
+                <label class="dialog-input-label sr-only" for="app-dialog-input"></label>
+                <input id="app-dialog-input" class="form-control dialog-input" type="text" autocomplete="off">
+            </div>
+            <div class="dialog-suggestions" hidden></div>
+            <div class="dialog-actions">
+                <button type="button" class="btn btn-outline dialog-cancel">Cancel</button>
+                <button type="submit" class="btn btn-primary dialog-ok">OK</button>
+            </div>
+        </form>
+    </dialog>
+
+    <audio id="global-speech-player" preload="auto"></audio>
+
+    <script src="{{ url_for('static', filename='js/ui.js') }}?v={{ asset_version }}"></script>
+    {% block extra_scripts %}{% endblock %}
+</body>
+</html>

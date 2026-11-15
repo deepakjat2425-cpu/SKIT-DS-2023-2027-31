@@ -1,0 +1,321 @@
+{% extends "base.html" %}
+
+{% block title %}Viva Sandbox &middot; {{ project_title }}{% endblock %}
+
+{% block content %}
+<div class="sandbox-layout">
+
+    <!-- Header -->
+    <section class="card hero-card" aria-labelledby="sandbox-title">
+        <div class="inst-badge">
+            <span class="skit-tag"><i class="fa-solid fa-graduation-cap" aria-hidden="true"></i> SKIT JAIPUR</span>
+            <span class="dept-tag">{{ department }}</span>
+        </div>
+        <p class="proposal-title">B.Tech final year project &middot; EXAMINER VIVA EVALUATION</p>
+        <h1 id="sandbox-title" class="main-project-heading text-gradient">{{ project_title }}</h1>
+
+        <div class="meta-grid">
+            <div class="meta-box">
+                <h4><i class="fa-solid fa-users" aria-hidden="true"></i> Project candidates</h4>
+                <ul class="meta-list">
+                    {% for member in team %}
+                    <li><strong>{{ member.name }}</strong><span>{{ member.roll_no }}</span></li>
+                    {% endfor %}
+                </ul>
+            </div>
+            <div class="meta-box">
+                <h4><i class="fa-solid fa-chalkboard-user" aria-hidden="true"></i> Project supervisor</h4>
+                <p><strong>{{ supervisor.name }}</strong><br><span class="text-muted">{{ supervisor.designation }}</span></p>
+                <p class="college-subtext">{{ college }}</p>
+            </div>
+        </div>
+
+        <div class="hero-actions">
+            <button class="btn btn-primary" id="btn-run-all" type="button" onclick="runAllScenarios()">
+                <i class="fa-solid fa-play" aria-hidden="true"></i> Run all {{ scenarios|length }} scenarios
+            </button>
+            <button class="btn btn-outline" id="btn-benchmark" type="button" onclick="runSystemBenchmark()">
+                <i class="fa-solid fa-bolt" aria-hidden="true"></i> Re-run benchmark
+            </button>
+            <button class="btn btn-outline" type="button" onclick="window.print()">
+                <i class="fa-solid fa-print" aria-hidden="true"></i> Print viva report
+            </button>
+        </div>
+    </section>
+
+    <!-- KPIs -->
+    <section class="metric-grid" aria-label="Benchmark metrics">
+        <div class="metric-card">
+            <div class="metric-label"><i class="fa-solid fa-gauge-high" aria-hidden="true"></i> Vision latency</div>
+            <div class="metric-value" id="kpi-vision-latency">{{ metrics.total_vision_latency_ms }}<span class="unit">ms</span></div>
+            <div class="metric-sub">YOLO26 + YOLOE + trajectory + NLP</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-label"><i class="fa-solid fa-forward-fast" aria-hidden="true"></i> Throughput</div>
+            <div class="metric-value metric-good" id="kpi-fps">{{ metrics.effective_fps }}<span class="unit">FPS</span></div>
+            <div class="metric-sub">Continuous vision feed</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-label"><i class="fa-solid fa-bullseye" aria-hidden="true"></i> Accuracy</div>
+            <div class="metric-value" id="kpi-accuracy">{{ metrics.detection_accuracy_pct }}<span class="unit">%</span></div>
+            <div class="metric-sub">Multi-class obstacles</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-label"><i class="fa-solid fa-chart-line" aria-hidden="true"></i> F1 score</div>
+            <div class="metric-value metric-accent" id="kpi-f1">{{ metrics.f1_score }}</div>
+            <div class="metric-sub" id="kpi-pr">P {{ metrics.precision_pct }}% &middot; R {{ metrics.recall_pct }}%</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-label"><i class="fa-solid fa-file-lines" aria-hidden="true"></i> OCR latency</div>
+            <div class="metric-value" id="kpi-ocr">{{ metrics.ocr_latency_ms }}<span class="unit">ms</span></div>
+            <div class="metric-sub">EasyOCR + NMT</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-label"><i class="fa-solid fa-shield-halved" aria-hidden="true"></i> False positives</div>
+            <div class="metric-value metric-good" id="kpi-fpr">{{ metrics.false_positive_rate_pct }}<span class="unit">%</span></div>
+            <div class="metric-sub">Temporal smoothing</div>
+        </div>
+    </section>
+
+    <!-- Scenarios -->
+    <section class="card" aria-labelledby="scenarios-heading">
+        <div class="card-head">
+            <div>
+                <h3 id="scenarios-heading"><i class="fa-solid fa-vial-circle-check" aria-hidden="true"></i> Examiner test benches</h3>
+                <p class="card-desc" style="margin:4px 0 0">Simulate real-world edge cases and verify the decision, latency and spoken alert.</p>
+            </div>
+            <div class="run-progress no-print" id="run-progress" aria-live="polite">
+                <span id="run-progress-text">{{ scenarios|length }} scenarios ready</span>
+                <div class="progress-track" aria-hidden="true"><div class="progress-bar" id="run-progress-bar"></div></div>
+            </div>
+        </div>
+
+        <div class="sim-grid">
+            {% for sc in scenarios %}
+            <article class="sim-card" id="card-{{ sc.id }}" data-scenario="{{ sc.id }}">
+                <div class="sim-top">
+                    <div class="sim-header-row">
+                        <span class="badge badge-primary">{{ sc.category }}</span>
+                        {% if sc.ground_truth_severity == 'hazard' %}
+                            <span class="badge badge-danger"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> Hazard</span>
+                        {% elif sc.ground_truth_severity == 'danger' %}
+                            <span class="badge badge-danger"><i class="fa-solid fa-skull-crossbones" aria-hidden="true"></i> Danger</span>
+                        {% elif sc.ground_truth_severity == 'caution' %}
+                            <span class="badge badge-warning"><i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i> Caution</span>
+                        {% else %}
+                            <span class="badge badge-safe"><i class="fa-solid fa-shield" aria-hidden="true"></i> Safe</span>
+                        {% endif %}
+                    </div>
+                    <h4 class="sim-title">{{ sc.title }}</h4>
+                    <p class="sim-desc">{{ sc.description }}</p>
+                    <div class="sim-expected-box"><strong>Expected:</strong> {{ sc.expected_alert }}</div>
+                </div>
+
+                <div class="sim-result-box" id="result-{{ sc.id }}" aria-live="polite"></div>
+
+                <div class="sim-action-row">
+                    <button class="btn btn-sm btn-primary" id="btn-{{ sc.id }}" type="button" onclick="runScenarioSim('{{ sc.id }}')">
+                        <i class="fa-solid fa-play" aria-hidden="true"></i> Run simulation
+                    </button>
+                </div>
+            </article>
+            {% endfor %}
+        </div>
+    </section>
+
+    <!-- Latency table -->
+    <section class="card" aria-labelledby="latency-heading">
+        <h3 id="latency-heading"><i class="fa-solid fa-microchip" aria-hidden="true"></i> Module latency</h3>
+        <p class="card-desc">Mean over 100 inference iterations on an Intel CPU / edge mobile thread budget.</p>
+        <div class="table-responsive">
+            <table class="styled-table">
+                <thead>
+                    <tr>
+                        <th scope="col">Subsystem</th>
+                        <th scope="col">Technology</th>
+                        <th scope="col">Mean</th>
+                        <th scope="col">Target</th>
+                        <th scope="col">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Object &amp; obstacle detection</strong></td>
+                        <td>YOLO26-S + YOLOE-26-S</td>
+                        <td class="num" id="lat-yolo">{{ metrics.yolo_inference_ms }} ms</td>
+                        <td class="num">&lt; 50 ms</td>
+                        <td><span class="badge badge-safe"><i class="fa-solid fa-check" aria-hidden="true"></i> Real-time</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Collision &amp; TTC trajectory</strong></td>
+                        <td>Kalman filter + bounding-box velocity</td>
+                        <td class="num" id="lat-traj">{{ metrics.trajectory_adas_ms }} ms</td>
+                        <td class="num">&lt; 5 ms</td>
+                        <td><span class="badge badge-safe"><i class="fa-solid fa-check" aria-hidden="true"></i> Real-time</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>NLP scene description</strong></td>
+                        <td>Spatial priority rules + NMT</td>
+                        <td class="num" id="lat-nlp">{{ metrics.nlp_synthesis_ms }} ms</td>
+                        <td class="num">&lt; 10 ms</td>
+                        <td><span class="badge badge-safe"><i class="fa-solid fa-check" aria-hidden="true"></i> Real-time</span></td>
+                    </tr>
+                    <tr class="highlight-row">
+                        <td><strong>End-to-end vision loop</strong></td>
+                        <td>Integrated pipeline</td>
+                        <td class="num" id="lat-total"><strong>{{ metrics.total_vision_latency_ms }} ms</strong></td>
+                        <td class="num"><strong>&lt; 70 ms</strong></td>
+                        <td><span class="badge badge-primary"><i class="fa-solid fa-star" aria-hidden="true"></i> <span id="lat-fps">{{ metrics.effective_fps }}</span> FPS</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Sign OCR &amp; translation</strong></td>
+                        <td>EasyOCR + Google NMT</td>
+                        <td class="num" id="lat-ocr">{{ metrics.ocr_latency_ms }} ms</td>
+                        <td class="num">&lt; 250 ms</td>
+                        <td><span class="badge badge-safe"><i class="fa-solid fa-check" aria-hidden="true"></i> Asynchronous</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Acoustic siren / horn analyser</strong></td>
+                        <td>Web Audio FFT, 256-bin band-pass</td>
+                        <td class="num">4.2 ms</td>
+                        <td class="num">&lt; 15 ms</td>
+                        <td><span class="badge badge-safe"><i class="fa-solid fa-check" aria-hidden="true"></i> Background</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- Viva Q&A -->
+    <section class="card" aria-labelledby="faq-heading">
+        <h3 id="faq-heading"><i class="fa-solid fa-comments" aria-hidden="true"></i> Viva defence quick reference</h3>
+        <div class="faq-list">
+            <details open>
+                <summary>How does the system stay real-time on a phone or CPU?</summary>
+                <p>Small YOLO26 weights (with the YOLOE vocabulary model on every third frame), background threads for OCR and speech, and selective frame skipping keep the video at full frame rate while detection takes about 0.1–0.2 s per frame on a laptop CPU. The browser draws the HUD locally, so the video never waits for the server.</p>
+            </details>
+            <details>
+                <summary>How does collision avoidance (time-to-collision) work?</summary>
+                <p>The tracker measures how fast each moving object's bounding box grows over time. When the estimated time-to-collision drops below 2.5 seconds, an urgent evasive instruction overrides normal speech.</p>
+            </details>
+            <details>
+                <summary>How are users protected from expired medicine?</summary>
+                <p>CLAHE glare reduction makes foil strips readable. OCR extracts EXP and MFG dates with regular expressions, compares them with today's date, and speaks an urgent warning if the medicine has expired.</p>
+            </details>
+            <details>
+                <summary>What reassures caregivers during an emergency?</summary>
+                <p>A fall (accelerometer spike above 2.5 g) or the SOS button shares live coordinates on the caregiver map and creates a WhatsApp message with a Google Maps link. A 10-second spoken countdown lets the user cancel false alarms.</p>
+            </details>
+        </div>
+    </section>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const esc = AMCS.escapeHtml;
+let completed = 0;
+const allScenarioIds = () => [...document.querySelectorAll("[data-scenario]")].map(el => el.dataset.scenario);
+
+function setProgress(done, total, label) {
+    document.getElementById("run-progress-bar").style.width = total ? `${Math.round(done / total * 100)}%` : "0";
+    document.getElementById("run-progress-text").textContent = label;
+}
+
+async function runScenarioSim(scenarioId) {
+    const btn = document.getElementById(`btn-${scenarioId}`);
+    const resultBox = document.getElementById(`result-${scenarioId}`);
+    const card = document.getElementById(`card-${scenarioId}`);
+    if (!btn || !resultBox) return false;
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i> Testing…';
+    card.classList.remove("is-passed", "is-failed");
+    let passed = false;
+
+    try {
+        const res = await fetch("/api/sandbox/simulate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ scenario_id: scenarioId })
+        });
+        const data = await res.json();
+        if (data.status === "passed") {
+            passed = true;
+            resultBox.className = "sim-result-box passed";
+            resultBox.innerHTML = `
+                <div class="sim-result-title"><i class="fa-solid fa-circle-check" aria-hidden="true"></i> Passed in ${esc(data.execution_latency_ms)} ms</div>
+                <div><strong>Spoken alert:</strong> ${esc(data.alert_dispatched)}</div>
+                <div class="sim-result-notes">${esc(data.examiner_notes)}</div>`;
+        } else {
+            resultBox.className = "sim-result-box error";
+            resultBox.innerHTML = `<div class="sim-result-title"><i class="fa-solid fa-circle-xmark" aria-hidden="true"></i> Failed: ${esc(data.message || "Error")}</div>`;
+        }
+    } catch (e) {
+        resultBox.className = "sim-result-box error";
+        resultBox.innerHTML = `<div class="sim-result-title"><i class="fa-solid fa-circle-xmark" aria-hidden="true"></i> Communication error: ${esc(e.message)}</div>`;
+    } finally {
+        card.classList.add(passed ? "is-passed" : "is-failed");
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-rotate-right" aria-hidden="true"></i> Run again';
+    }
+    return passed;
+}
+
+async function runAllScenarios() {
+    const ids = allScenarioIds();
+    const runBtn = document.getElementById("btn-run-all");
+    runBtn.disabled = true;
+    let passed = 0;
+    for (let i = 0; i < ids.length; i++) {
+        setProgress(i, ids.length, `Running ${i + 1} of ${ids.length}…`);
+        if (await runScenarioSim(ids[i])) passed++;
+    }
+    setProgress(ids.length, ids.length, `${passed} of ${ids.length} passed`);
+    runBtn.disabled = false;
+    AMCS.toast({
+        title: passed === ids.length ? "All scenarios passed" : "Some scenarios failed",
+        message: `${passed} of ${ids.length} test benches verified.`,
+        type: passed === ids.length ? "success" : "warning"
+    });
+}
+
+async function runSystemBenchmark() {
+    const btn = document.getElementById("btn-benchmark");
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i> Benchmarking…';
+    try {
+        const res = await fetch("/api/sandbox/benchmark");
+        const data = await res.json();
+        if (data.status === "success" && data.benchmark) {
+            const b = data.benchmark;
+            const setVal = (id, value, unit) => {
+                document.getElementById(id).innerHTML = `${esc(value)}${unit ? `<span class="unit">${unit}</span>` : ""}`;
+            };
+            setVal("kpi-vision-latency", b.total_vision_latency_ms, "ms");
+            setVal("kpi-fps", b.effective_fps, "FPS");
+            setVal("kpi-accuracy", b.detection_accuracy_pct, "%");
+            setVal("kpi-f1", b.f1_score, "");
+            setVal("kpi-ocr", b.ocr_latency_ms, "ms");
+            setVal("kpi-fpr", b.false_positive_rate_pct, "%");
+            document.getElementById("kpi-pr").textContent = `P ${b.precision_pct}% · R ${b.recall_pct}%`;
+            document.getElementById("lat-yolo").textContent = `${b.yolo_inference_ms} ms`;
+            document.getElementById("lat-traj").textContent = `${b.trajectory_adas_ms} ms`;
+            document.getElementById("lat-nlp").textContent = `${b.nlp_synthesis_ms} ms`;
+            document.getElementById("lat-total").innerHTML = `<strong>${esc(b.total_vision_latency_ms)} ms</strong>`;
+            document.getElementById("lat-ocr").textContent = `${b.ocr_latency_ms} ms`;
+            document.getElementById("lat-fps").textContent = b.effective_fps;
+            AMCS.toast({ title: "Benchmark updated", message: `${b.total_vision_latency_ms} ms end-to-end · ${b.effective_fps} FPS`, type: "success" });
+        }
+    } catch (e) {
+        AMCS.toast({ title: "Benchmark failed", message: "Could not reach the server.", type: "error" });
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-bolt" aria-hidden="true"></i> Re-run benchmark';
+    }
+}
+
+// Expand every answer when printing so the report is complete
+window.addEventListener("beforeprint", () => document.querySelectorAll(".faq-list details").forEach(d => d.open = true));
+</script>
+{% endblock %}

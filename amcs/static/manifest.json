@@ -1,0 +1,21 @@
+{
+  "name": "Automatic Multilanguage Communication System",
+  "short_name": "AMCS",
+  "description": "Assistive vision-to-speech, sign translation, currency and medicine reading, with live caregiver safety mapping.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#06070b",
+  "theme_color": "#06070b",
+  "orientation": "portrait",
+  "categories": ["accessibility", "health", "navigation"],
+  "icons": [
+    { "src": "/static/icons/icon.svg", "sizes": "any", "type": "image/svg+xml" },
+    { "src": "/static/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/static/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ],
+  "shortcuts": [
+    { "name": "Sign translator", "url": "/ocr" },
+    { "name": "Caregiver dashboard", "url": "/caregiver" }
+  ]
+}

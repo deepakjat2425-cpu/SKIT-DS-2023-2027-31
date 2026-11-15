@@ -1,0 +1,183 @@
+/* ==========================================================================
+   Caregiver Dashboard - Premium Styles
+   Automatic Multilanguage Communication System - SKIT Jaipur
+   ========================================================================== */
+
+.caregiver-layout {
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+}
+
+/* KPI Cards */
+.kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+}
+@media (max-width: 1024px) { .kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 580px) { .kpi-grid { grid-template-columns: 1fr; } }
+
+.kpi-card {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 16px;
+}
+.kpi-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: var(--radius-xs);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.15rem;
+    flex-shrink: 0;
+}
+.kpi-blue { background: var(--primary-muted); color: var(--primary-light); }
+.kpi-green { background: var(--success-muted); color: var(--success); }
+.kpi-amber { background: var(--warning-muted); color: var(--warning); }
+.kpi-purple { background: var(--accent-muted); color: var(--accent); }
+.kpi-red { background: var(--danger-muted); color: var(--danger); animation: pulseRed 2s ease-in-out infinite alternate; }
+
+@keyframes pulseRed {
+    from { transform: scale(1); opacity: 1; }
+    to { transform: scale(1.05); opacity: 0.85; }
+}
+
+.kpi-body {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+.kpi-label {
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-dim);
+    font-weight: 600;
+}
+.kpi-body h4 {
+    font-size: 0.98rem;
+    margin: 2px 0;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    overflow: hidden;
+}
+.kpi-body small {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+}
+
+/* Dashboard Workspace */
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: 1.8fr 1fr;
+    gap: 22px;
+}
+@media (max-width: 1024px) { .dashboard-grid { grid-template-columns: 1fr; } }
+
+.folium-container {
+    width: 100%;
+    height: 500px;
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-subtle);
+}
+#folium-map-iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+}
+
+.map-footer-legend {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-top: 12px;
+    font-size: 0.72rem;
+    color: var(--text-dim);
+    flex-wrap: wrap;
+}
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+.legend-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+}
+.dot-blue { background: var(--primary-light); }
+.dot-trail { background: var(--accent); border-radius: 2px; height: 2px; width: 14px; }
+.dot-green { background: var(--success); }
+.dot-red { background: var(--danger); }
+
+.map-actions { display: flex; gap: 6px; }
+
+/* Activity Feed */
+.activity-feed-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 450px;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+.activity-item {
+    background: rgba(255, 255, 255, 0.015);
+    border: 1px solid var(--border-subtle);
+    border-left: 3px solid var(--primary);
+    border-radius: 6px;
+    padding: 10px 12px;
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    animation: fadeInFeed 0.35s var(--ease);
+}
+@keyframes fadeInFeed {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.item-danger { border-left-color: var(--danger); background: var(--danger-muted); }
+.item-warning { border-left-color: var(--warning); background: var(--warning-muted); }
+.item-success { border-left-color: var(--success); background: var(--success-muted); }
+
+.activity-icon { font-size: 0.88rem; margin-top: 2px; }
+.activity-body { flex: 1; }
+.activity-time {
+    font-size: 0.66rem;
+    font-family: var(--font-mono);
+    color: var(--text-dim);
+    float: right;
+}
+.activity-desc {
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    line-height: 1.45;
+    margin-top: 2px;
+}
+
+.activity-empty {
+    text-align: center;
+    padding: 40px 16px;
+    color: var(--text-dim);
+    font-size: 0.84rem;
+}
+.activity-empty i {
+    font-size: 1.6rem;
+    margin-bottom: 12px;
+    color: var(--primary-light);
+    opacity: 0.5;
+}
+
+.caregiver-quick-actions {
+    margin-top: 14px;
+    border-top: 1px solid var(--border-subtle);
+    padding-top: 14px;
+}

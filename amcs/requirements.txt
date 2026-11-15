@@ -1,0 +1,17 @@
+flask>=3.0.0
+opencv-python>=4.8.0
+ultralytics>=8.0.0
+gTTS>=2.5.0
+deep-translator>=1.11.0
+pyttsx3>=2.90
+folium>=0.15.0
+requests>=2.31.0
+numpy>=1.24.0
+Pillow>=10.0.0
+Jinja2>=3.1.0
+easyocr>=1.7.0
+
+# Optional: needed only for AMCS_HTTPS=1 (phone camera over Wi-Fi).
+# uvicorn serves HTTPS without the stalls of Flask's built-in server.
+# cryptography>=42.0.0
+# uvicorn>=0.30.0

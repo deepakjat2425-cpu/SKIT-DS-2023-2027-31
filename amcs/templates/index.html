@@ -1,0 +1,312 @@
+{% extends "base.html" %}
+
+{% block title %}Assist &middot; {{ project_title }}{% endblock %}
+
+{% block content %}
+<h1 class="sr-only">Assistive vision and speech</h1>
+
+<div class="app-workspace">
+
+    <!-- Camera & live HUD -->
+    <section class="viewport-card" aria-label="Camera view">
+        <div class="viewport-toolbar">
+            <div class="mode-segmented" role="toolbar" aria-label="Recognition mode">
+                <button class="seg-btn active" id="mode-vision" type="button" onclick="setMode('vision')" aria-pressed="true">
+                    <i class="fa-solid fa-person-walking" aria-hidden="true"></i><span>Obstacles</span>
+                </button>
+                <button class="seg-btn" id="mode-ocr" type="button" onclick="setMode('ocr')" aria-pressed="false">
+                    <i class="fa-solid fa-file-lines" aria-hidden="true"></i><span>Signs</span>
+                </button>
+                <button class="seg-btn" id="mode-currency" type="button" onclick="setMode('currency')" aria-pressed="false">
+                    <i class="fa-solid fa-indian-rupee-sign" aria-hidden="true"></i><span>Currency</span>
+                </button>
+                <button class="seg-btn" id="mode-medicine" type="button" onclick="setMode('medicine')" aria-pressed="false">
+                    <i class="fa-solid fa-pills" aria-hidden="true"></i><span>Medicine</span>
+                </button>
+                <button class="seg-btn" id="mode-hybrid" type="button" onclick="setMode('hybrid')" aria-pressed="false">
+                    <i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i><span>Hybrid</span>
+                </button>
+            </div>
+
+            <label class="lang-pill" title="Spoken language">
+                <i class="fa-solid fa-globe" aria-hidden="true"></i>
+                <span class="sr-only">Spoken language</span>
+                <select id="lang-select" class="lang-dropdown">
+                    {% for code, meta in languages.items() %}
+                    <option value="{{ code }}" {% if code == default_lang %}selected{% endif %}>{{ meta.flag }} {{ meta.native }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+        </div>
+
+        <div class="video-stage" id="video-wrapper">
+            <video id="webcam" autoplay playsinline muted aria-hidden="true"></video>
+            <canvas id="annotated-canvas" aria-hidden="true"></canvas>
+            <span class="stage-corner tl" aria-hidden="true"></span>
+            <span class="stage-corner tr" aria-hidden="true"></span>
+            <span class="stage-corner bl" aria-hidden="true"></span>
+            <span class="stage-corner br" aria-hidden="true"></span>
+
+            <!-- Status capsule -->
+            <div id="dynamic-island" class="dynamic-island" role="button" tabindex="0" aria-label="Show live telemetry" onclick="expandIslandManually()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();expandIslandManually();}">
+                <div class="island-collapsed">
+                    <span class="island-dot" aria-hidden="true"></span>
+                    <span id="island-telemetry" class="island-text">Camera idle</span>
+                </div>
+                <div class="island-expanded" id="island-expanded-content">
+                    <div class="island-icon-wrap" id="island-icon-wrap" aria-hidden="true">
+                        <i id="island-icon" class="fa-solid fa-wand-magic-sparkles"></i>
+                    </div>
+                    <div class="island-details">
+                        <span id="island-title" class="island-title">Spatial vision active</span>
+                        <span id="island-subtitle" class="island-subtitle">Obstacle navigation &amp; proximity active</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="stage-floating-top">
+                <div class="stage-top-left">
+                    <span id="live-chip" class="live-chip" aria-hidden="true"><span class="live-dot"></span><span id="live-chip-text">STANDBY</span></span>
+                    <span id="low-light-chip" class="stage-chip" role="status" hidden><i class="fa-solid fa-moon" aria-hidden="true"></i>LOW LIGHT &middot; ADD LIGHT</span>
+                </div>
+                <div class="stage-top-actions">
+                    <button class="stage-icon-btn" id="torch-btn" type="button" onclick="toggleTorch()" title="Flashlight" aria-label="Toggle flashlight" aria-pressed="false">
+                        <i class="fa-solid fa-lightbulb" aria-hidden="true"></i>
+                    </button>
+                    <button class="stage-icon-btn" id="flip-camera-btn" type="button" onclick="flipCamera()" title="Switch camera" aria-label="Switch to the next camera">
+                        <i class="fa-solid fa-camera-rotate" aria-hidden="true"></i>
+                    </button>
+                    <button class="stage-icon-btn" id="mute-btn" type="button" onclick="toggleMute()" title="Mute voice" aria-label="Mute voice feedback" aria-pressed="false">
+                        <i class="fa-solid fa-volume-high" aria-hidden="true"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Turn-by-turn wayfinding -->
+            <div id="nav-turn-banner" class="nav-turn-banner hidden" role="status">
+                <div class="nav-maneuver-icon" id="nav-maneuver-icon" aria-hidden="true"><i class="fa-solid fa-location-arrow"></i></div>
+                <div class="nav-instruction-wrap">
+                    <span class="nav-distance-badge" id="nav-distance-badge">Navigation active</span>
+                    <span class="nav-step-text" id="nav-step-text">Walking to destination…</span>
+                </div>
+                <button class="btn-nav-cancel" type="button" onclick="cancelActiveNavigation()" aria-label="Cancel navigation"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <!-- Item radar -->
+            <div id="radar-live-banner" class="radar-live-banner hidden" role="status">
+                <div class="radar-ping-dot" id="radar-ping-dot" aria-hidden="true"></div>
+                <div class="radar-details">
+                    <span class="radar-title" id="radar-title">AUDIO RADAR</span>
+                    <span class="radar-sub" id="radar-sub">Searching for item…</span>
+                </div>
+                <button class="btn-nav-cancel" type="button" onclick="stopItemFinder()" aria-label="Stop item radar"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <!-- Camera permission / paused overlay -->
+            <div id="video-overlay-msg" class="video-overlay">
+                <div class="overlay-icon" aria-hidden="true"><i class="fa-solid fa-video"></i></div>
+                <h3 id="overlay-title">Camera is off</h3>
+                <p id="overlay-text">Allow camera access to start assistive vision. Video is processed on your own AMCS server.</p>
+                <button id="overlay-start-btn" class="btn btn-primary btn-lg" type="button" onclick="startCamera()">
+                    <i class="fa-solid fa-play" aria-hidden="true"></i> Enable camera
+                </button>
+            </div>
+
+            <!-- Main controls -->
+            <div class="stage-floating-bottom">
+                <div class="dock-container">
+                    <button id="mic-btn" class="btn-dock-icon" type="button" onclick="toggleVoiceRecognition()" title="Voice command (V)" aria-label="Voice command" aria-pressed="false">
+                        <i class="fa-solid fa-microphone" aria-hidden="true"></i>
+                    </button>
+                    <button id="start-auto-btn" class="btn-assistant" type="button" onclick="toggleAutoDetection()" aria-keyshortcuts="Space">
+                        <i class="fa-solid fa-play" id="auto-btn-icon" aria-hidden="true"></i>
+                        <span id="auto-btn-text">Start Assistant</span>
+                    </button>
+                    <button id="sos-btn" class="btn-dock-sos" type="button" onclick="triggerSOS()" title="Emergency SOS" aria-label="Send emergency SOS to caregiver">SOS</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Live numbers from the detector -->
+        <div class="telemetry-strip" aria-label="Live telemetry">
+            <div class="tele-tile">
+                <span class="tele-label"><i class="fa-solid fa-cubes" aria-hidden="true"></i> In view</span>
+                <span class="tele-value" id="tele-objects">0</span>
+                <span class="tele-sub" id="tele-objects-sub">objects detected</span>
+            </div>
+            <div class="tele-tile" id="tele-nearest-tile">
+                <span class="tele-label"><i class="fa-solid fa-ruler-horizontal" aria-hidden="true"></i> Nearest</span>
+                <span class="tele-value" id="tele-nearest">&mdash;</span>
+                <span class="tele-sub" id="tele-nearest-sub">nothing close</span>
+            </div>
+            <div class="tele-tile">
+                <span class="tele-label"><i class="fa-solid fa-bolt" aria-hidden="true"></i> Response</span>
+                <span class="tele-value" id="tele-latency">&mdash;</span>
+                <span class="tele-sub" id="tele-latency-sub">camera to guidance</span>
+            </div>
+            <div class="tele-tile">
+                <span class="tele-label"><i class="fa-solid fa-microchip" aria-hidden="true"></i> Vision model</span>
+                <span class="tele-value" id="tele-model">{{ detector_model.replace('.pt', '').replace('yolo', 'YOLO') }}</span>
+                <span class="tele-sub" id="tele-model-sub">{% if detector_extended %}+ extended vocabulary{% else %}80 object classes{% endif %}</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- Guidance & controls panel -->
+    <aside class="intelligence-card" aria-label="Guidance">
+
+        <section class="panel-card guidance-card" id="guidance-card">
+            <div class="section-label-flex">
+                <span class="eyebrow"><i class="fa-solid fa-wave-square" aria-hidden="true"></i> Live guidance</span>
+                <div class="speech-tools">
+                    <span id="hazard-total-badge" class="badge badge-safe">Path Clear</span>
+                    <button class="btn btn-icon-xs" type="button" onclick="replayAudio()" title="Repeat last guidance (R)" aria-label="Repeat last guidance" aria-keyshortcuts="R">
+                        <i class="fa-solid fa-rotate-right" aria-hidden="true"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="guidance-text-box">
+                <h2 id="speech-translated-text" class="guidance-main" aria-live="polite" aria-atomic="true">Start the assistant to receive spoken guidance.</h2>
+                <p id="speech-original-text" class="guidance-sub">Press Start Assistant, or say “start”.</p>
+            </div>
+
+            <div class="fluid-audio-container" id="fluid-audio-container" aria-hidden="true">
+                <canvas id="voice-orb-canvas" width="400" height="64"></canvas>
+                <div class="fluid-audio-status">
+                    <span class="orb-pulse-dot" id="orb-status-dot"></span>
+                    <span id="voice-status-label" class="orb-status-text">Standby</span>
+                </div>
+            </div>
+        </section>
+
+        <section class="panel-card" aria-labelledby="surroundings-heading">
+            <div class="section-label-flex">
+                <span class="eyebrow" id="surroundings-heading"><i class="fa-solid fa-satellite-dish" aria-hidden="true"></i> Proximity radar</span>
+                <span id="detected-count" class="meta-tag">0 detected</span>
+            </div>
+            <div class="radar-wrap">
+                <canvas id="proximity-radar" role="img" aria-label="Top-down map of detected objects by direction and distance"></canvas>
+                <div class="radar-legend" aria-hidden="true">
+                    <span><i class="lg-hazard"></i>Hazard</span>
+                    <span><i class="lg-caution"></i>Caution</span>
+                    <span><i class="lg-safe"></i>Clear</span>
+                </div>
+            </div>
+            <div class="spatial-strip">
+                <div class="spatial-node" id="spatial-left">
+                    <div class="node-dir"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Left</div>
+                    <div class="node-val" id="spatial-left-val"><span class="status-clear">Clear</span></div>
+                </div>
+                <div class="spatial-node node-ahead" id="spatial-ahead">
+                    <div class="node-dir"><i class="fa-solid fa-arrow-up" aria-hidden="true"></i> Ahead</div>
+                    <div class="node-val" id="spatial-ahead-val"><span class="status-clear">Clear</span></div>
+                </div>
+                <div class="spatial-node" id="spatial-right">
+                    <div class="node-dir">Right <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></div>
+                    <div class="node-val" id="spatial-right-val"><span class="status-clear">Clear</span></div>
+                </div>
+            </div>
+        </section>
+
+        <section class="panel-card" aria-labelledby="objects-heading">
+            <div class="section-label-flex">
+                <span class="eyebrow" id="objects-heading"><i class="fa-solid fa-layer-group" aria-hidden="true"></i> Objects in view</span>
+                <span class="meta-tag">nearest first &middot; confidence</span>
+            </div>
+            <ul id="object-list" class="object-list">
+                <li class="object-empty">Start the assistant to list what the camera sees.</li>
+            </ul>
+        </section>
+
+        <section class="panel-card" aria-labelledby="tools-heading">
+            <div class="section-label-flex">
+                <span class="eyebrow" id="tools-heading"><i class="fa-solid fa-toolbox" aria-hidden="true"></i> Quick tools</span>
+            </div>
+            <div class="quick-grid">
+                <button class="quick-action" type="button" onclick="describeNow()" aria-keyshortcuts="D">
+                    <i class="fa-solid fa-eye" aria-hidden="true"></i>Describe now
+                </button>
+                <button class="quick-action" type="button" onclick="promptSceneQuestion()">
+                    <i class="fa-solid fa-comment-dots" aria-hidden="true"></i>Ask a question
+                </button>
+                <button id="find-item-btn" class="quick-action" type="button" onclick="promptFindItem()">
+                    <i class="fa-solid fa-satellite-dish" aria-hidden="true"></i>Find my item
+                </button>
+                <button class="quick-action" type="button" onclick="promptNavigation()">
+                    <i class="fa-solid fa-route" aria-hidden="true"></i>Navigate to…
+                </button>
+                <button class="quick-action" type="button" onclick="saveCurrentPlace('')">
+                    <i class="fa-solid fa-location-dot" aria-hidden="true"></i>Save this place
+                </button>
+                <button class="quick-action" type="button" onclick="sayWhereAmI()">
+                    <i class="fa-solid fa-map-location-dot" aria-hidden="true"></i>Where am I?
+                </button>
+                <button class="quick-action" type="button" onclick="scanDoorGuidance()">
+                    <i class="fa-solid fa-door-open" aria-hidden="true"></i>Find the door
+                </button>
+                <button class="quick-action" type="button" onclick="analyzeGarmentClothing()">
+                    <i class="fa-solid fa-shirt" aria-hidden="true"></i>Clothing colour
+                </button>
+            </div>
+
+            <details class="voice-help">
+                <summary>Voice commands &amp; shortcuts</summary>
+                <ul class="command-list">
+                    <li><q>Start</q> / <q>Stop</q><span>Assistant on or off</span></li>
+                    <li><q>What is in front of me?</q> · <q>Saamne kya hai?</q><span>Ask about the scene</span></li>
+                    <li><q>What is this?</q> · <q>Who is in front of me?</q><span>Object in hand &amp; people</span></li>
+                    <li><q>How many people?</q> · <q>Where is the door?</q><span>Count &amp; locate</span></li>
+                    <li><q>Find my keys</q><span>Audio item radar</span></li>
+                    <li><q>Save this place as home</q><span>Remember where you are</span></li>
+                    <li><q>Take me to home</q> · <q>Where am I?</q><span>Walking directions</span></li>
+                    <li><span>Double-tap the camera view to ask by voice</span></li>
+                    <li><q>Medicine</q> · <q>Currency</q> · <q>Read sign</q><span>Switch mode</span></li>
+                    <li><q>Find the door</q> · <q>What colour</q><span>Door &amp; clothing</span></li>
+                    <li><q>Repeat</q> · <q>Mute</q> · <q>Help</q><span>Speech &amp; SOS</span></li>
+                    <li><span><kbd>Space</kbd> start · <kbd>D</kbd> describe · <kbd>R</kbd> repeat · <kbd>V</kbd> voice</span></li>
+                </ul>
+            </details>
+        </section>
+
+        <details class="panel-card history-panel">
+            <summary>
+                <span class="eyebrow"><i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i> Recent guidance</span>
+                <span id="history-count" class="meta-tag">0 spoken</span>
+            </summary>
+            <ol id="guidance-history" class="history-list">
+                <li class="history-empty">Spoken guidance will be listed here.</li>
+            </ol>
+        </details>
+
+        <section class="panel-card caregiver-link-strip" aria-label="Caregiver link">
+            <div class="caregiver-info">
+                <i class="fa-solid fa-location-dot" aria-hidden="true"></i>
+                <div class="caregiver-details">
+                    <span class="caregiver-title">Caregiver GPS sync</span>
+                    <span id="gps-coords" class="caregiver-sub">Waiting for location…</span>
+                </div>
+            </div>
+            <a href="/caregiver" class="btn-outline-sm" target="_blank" rel="noopener">
+                <span>Open map</span><i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i>
+            </a>
+        </section>
+    </aside>
+</div>
+
+<!-- Fall detection emergency overlay -->
+<div id="fall-alert-overlay" class="fall-alert-overlay hidden" role="alertdialog" aria-modal="true" aria-labelledby="fall-title" aria-describedby="fall-desc" onclick="cancelFallAlert()">
+    <div class="fall-alert-card" onclick="event.stopPropagation()">
+        <div class="fall-pulse-ring" aria-hidden="true"><i class="fa-solid fa-person-falling-burst"></i></div>
+        <h2 id="fall-title">Fall detected</h2>
+        <p id="fall-desc">Are you okay? Alerting your caregiver in <span id="fall-countdown-num">10</span> seconds.</p>
+        <button class="btn-fall-cancel" type="button" onclick="cancelFallAlert(event)">I am fine &middot; Cancel</button>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>window.AMCS_DEFAULT_LANG = {{ default_lang|tojson }};</script>
+<script src="{{ url_for('static', filename='js/panels.js') }}?v={{ asset_version }}"></script>
+<script src="{{ url_for('static', filename='js/main.js') }}?v={{ asset_version }}"></script>
+{% endblock %}

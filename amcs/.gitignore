@@ -1,0 +1,9 @@
+# Generated or downloaded at run time
+__pycache__/
+*.pt
+.easyocr_models/
+static/audio_cache/
+# Private: HTTPS key, people's face data, saved locations
+.certs/
+registered_contacts.json
+saved_places.json
